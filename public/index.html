@@ -734,6 +734,28 @@
       .section-title { font-size: 20px; }
       .hero-stats { gap: 16px; flex-wrap: wrap; }
     }
+      /* ---- v5: live counters in the hero ---- */
+    .hero-counters { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 10px; margin-top: 20px; max-width: 580px; }
+    .hc-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.78); border: 1.5px solid #ddd6fe; text-decoration: none; color: #0f172a; cursor: pointer; font-family: inherit; text-align: left; transition: transform .15s, box-shadow .15s; }
+    .hc-tile:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(124,58,237,.18); }
+    .hc-ico { font-size: 18px; }
+    .hc-tile b { font-family: 'Poppins', sans-serif; font-size: 24px; font-weight: 900; line-height: 1.15; }
+    .hc-tile small { font-size: 11px; color: #64748b; font-weight: 600; line-height: 1.25; }
+    .hc-msg.has-new { background: #7c3aed; border-color: #7c3aed; color: #fff; animation: hcPulse 2s infinite; }
+    .hc-msg.has-new small { color: #ede9fe; }
+    @keyframes hcPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(124,58,237,.5); } 50% { box-shadow: 0 0 0 8px rgba(124,58,237,0); } }
+    .nav-badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 5px; border-radius: 999px; background: #ef4444; color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+    html[data-theme="dark"] .hc-tile { background: rgba(30,41,59,.85); border-color: #475569; color: #f1f5f9; }
+    html[data-theme="dark"] .hc-tile small { color: #94a3b8; }
+    html[data-theme="dark"] .hc-msg.has-new { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+    html[data-theme="dark"] .hc-msg.has-new small { color: #ede9fe; }
+      @media (max-width: 600px) {
+      .hero-counters { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .hc-tile { padding: 9px 10px; border-radius: 12px; }
+      .hc-ico { font-size: 16px; }
+      .hc-tile b { font-size: 20px; }
+      .hc-tile small { font-size: 10px; }
+    }
   </style>
 </head>
 <body>
@@ -749,7 +771,7 @@
         <a class="hero-nav-btn" href="#rentalsSection">🚗 Rentals</a>
         <a class="hero-nav-btn" href="#itemsSection">📦 Items</a>
         <a class="hero-nav-btn" href="#roomsSection">🏠 Rooms</a>
-        <button class="hero-nav-btn" id="messagesNavBtn" onclick="openInbox()" style="display:none;">💬 Messages</button>
+        <button class="hero-nav-btn" id="messagesNavBtn" onclick="openInbox()" style="display:none;">💬 Messages<span class="nav-badge" id="navMsgBadge" hidden></span></button>
         <button class="hero-nav-btn theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Switch light / dark mode" aria-label="Switch light or dark mode">🌙</button>
         <a class="hero-nav-btn" id="adminNavBtn" href="admin.html" style="display:none;">🛡️ Admin</a>
         <button class="hero-nav-btn account-btn" id="accountNavBtn" onclick="openAuthDialog()">👤 Sign In</button>
@@ -776,6 +798,13 @@
             <div class="hero-stat-num" id="heroRate">--</div>
             <div class="hero-stat-label" id="heroRateCaption">Live rate</div>
           </div>
+        </div>
+        <div class="hero-counters" id="heroCounters">
+          <a class="hc-tile" href="#marketplaceSection" title="Money exchange listings"><span class="hc-ico">💱</span><b id="hcExchange">–</b><small>Money exchange</small></a>
+          <a class="hc-tile" href="#rentalsSection" title="Car, taxi and e-bike rentals"><span class="hc-ico">🚗</span><b id="hcRentals">–</b><small>Rentals</small></a>
+          <a class="hc-tile" href="#itemsSection" title="Items and gadgets for sale"><span class="hc-ico">📦</span><b id="hcItems">–</b><small>Items for sale</small></a>
+          <a class="hc-tile" href="#roomsSection" title="Rooms to let"><span class="hc-ico">🏠</span><b id="hcRooms">–</b><small>Rooms to let</small></a>
+          <button class="hc-tile hc-msg" id="hcMsgTile" type="button" onclick="openInbox()" title="Your messages"><span class="hc-ico">💬</span><b id="hcMsgs">🔒</b><small id="hcMsgLabel">Sign in for messages</small></button>
         </div>
       </div>
 
@@ -1909,7 +1938,7 @@
     }
 
     function updateAccountUI() {
-      setTimeout(() => { if (typeof renderItems === 'function') renderItems(); if (typeof loadRooms === 'function') { const k = currentUser ? currentUser.id : ''; if (window._roomsKey !== k) { window._roomsKey = k; loadRooms(); } else { renderRooms(); } } }, 0);
+      setTimeout(() => { if (typeof renderItems === 'function') renderItems(); if (typeof refreshHeroStats === 'function') refreshHeroStats(); if (typeof loadRooms === 'function') { const k = currentUser ? currentUser.id : ''; if (window._roomsKey !== k) { window._roomsKey = k; loadRooms(); } else { renderRooms(); } } }, 0);
       const btn = document.getElementById('accountNavBtn');
       const locked = document.getElementById('marketplaceLocked');
       const form = document.getElementById('marketplaceForm');
@@ -2699,6 +2728,51 @@
         container.appendChild(div);
       });
     }
+
+    // --- Hero counters: live listing numbers + your unread messages ---
+    function refreshHeroStats() {
+      fetch('/api/stats').then(r => r.json()).then(d => {
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        set('hcExchange', d.exchange); set('hcRentals', d.rentals); set('hcItems', d.items); set('hcRooms', d.rooms);
+      }).catch(() => {});
+      refreshMessageCounts();
+    }
+
+    function refreshMessageCounts() {
+      const tile = document.getElementById('hcMsgTile'), num = document.getElementById('hcMsgs'),
+            label = document.getElementById('hcMsgLabel'), badge = document.getElementById('navMsgBadge');
+      if (!tile) return;
+      if (!currentUser) {
+        num.textContent = '🔒'; label.textContent = 'Sign in for messages';
+        tile.classList.remove('has-new'); if (badge) badge.hidden = true;
+        return;
+      }
+      fetch('/api/my-summary', { headers: apiHeaders() }).then(r => r.ok ? r.json() : null).then(d => {
+        if (!d) return;
+        num.textContent = d.unread;
+        label.textContent = d.unread === 1 ? 'New message' : d.unread > 1 ? 'New messages'
+          : (d.conversations ? 'No new messages' : 'Messages');
+        tile.classList.toggle('has-new', d.unread > 0);
+        if (badge) { badge.hidden = d.unread === 0; badge.textContent = d.unread; }
+      }).catch(() => {});
+    }
+
+    // refresh the numbers whenever a list is reloaded (after posting, removing, marking sold...)
+    ['loadMarketplace', 'loadRentals', 'loadItems', 'loadRooms'].forEach(name => {
+      const original = window[name];
+      if (typeof original !== 'function') return;
+      window[name] = function () {
+        const result = original.apply(this, arguments);
+        clearTimeout(window._heroStatsTimer);
+        window._heroStatsTimer = setTimeout(refreshHeroStats, 800);
+        return result;
+      };
+    });
+    setInterval(() => { if (!document.hidden) refreshHeroStats(); }, 20000);
+    ['chatDialog', 'inboxDialog'].forEach(id => {
+      const dlg = document.getElementById(id);
+      if (dlg) dlg.addEventListener('close', refreshMessageCounts);
+    });
 
     checkAuthOnLoad();
     (function openResetFromLink() {

@@ -866,6 +866,7 @@ app.post('/api/messages', authMiddleware, (req, res) => {
     toUserId: toUser.id,
     toName: toUser.name,
     text: text.trim(),
+    read: false,
     sentAt: new Date().toISOString()
   };
   db.messages.push(message);
@@ -885,7 +886,30 @@ app.get('/api/messages/thread', authMiddleware, (req, res) => {
       ((m.fromUserId === req.user.id && m.toUserId === otherUserId) ||
        (m.fromUserId === otherUserId && m.toUserId === req.user.id)))
     .sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt));
+  // opening the thread marks the other person's messages to me as read
+  let changed = false;
+  thread.forEach(m => { if (m.toUserId === req.user.id && m.read === false) { m.read = true; changed = true; } });
+  if (changed) saveDB();
   res.json(thread);
+});
+
+// Public numbers for the hero section (available listings per category)
+app.get('/api/stats', (req, res) => {
+  const avail = arr => arr.filter(l => (l.status || 'available') === 'available').length;
+  res.json({
+    exchange: avail(db.marketplace), rentals: avail(db.rentals), items: avail(db.items), rooms: avail(db.rooms),
+    members: db.users.length
+  });
+});
+
+// The signed-in user's message numbers (unread = messages sent to me that I have not opened yet)
+app.get('/api/my-summary', authMiddleware, (req, res) => {
+  const mine = db.messages.filter(m => m.fromUserId === req.user.id || m.toUserId === req.user.id);
+  const convos = new Set(mine.map(m => `${m.listingType}:${m.listingId}:${m.fromUserId === req.user.id ? m.toUserId : m.fromUserId}`));
+  res.json({
+    unread: db.messages.filter(m => m.toUserId === req.user.id && m.read === false).length,
+    conversations: convos.size
+  });
 });
 
 // List all conversations the current user is part of, most recent first
