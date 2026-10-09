@@ -532,7 +532,7 @@
     html[data-theme="dark"] .item-photo { background:#0f172a; }
     html[data-theme="dark"] .item-photo-none { background:#0f172a; }
     html[data-theme="dark"] .item-tags { color:#c4b5fd; }
-    html[data-theme="dark"] #itemSearch, html[data-theme="dark"] #itemCategoryFilter { background:#0f172a; color:#f1f5f9; border-color:#475569 !important; }
+    html[data-theme="dark"] #itemSearch, html[data-theme="dark"] #itemCategoryFilter, html[data-theme="dark"] #roomSearch, html[data-theme="dark"] #roomTypeFilter, html[data-theme="dark"] #roomMaxPrice { background:#0f172a; color:#f1f5f9; border-color:#475569 !important; }
     .site-footer { text-align:center; }
     .footer-brand { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:6px; }
     .footer-logo { width:44px; height:44px; display:block; }
@@ -638,6 +638,77 @@
     html[data-theme="dark"] a { color: #93c5fd; }
     html[data-theme="dark"] .hero-nav-btn, html[data-theme="dark"] .explore-go-btn, html[data-theme="dark"] .explore-go-link { text-decoration: none; }
     html, body, .site-nav, .hero-card, .card, .currency-card, .provider, .listing-card, dialog, input, select { transition: background-color .25s, color .25s, border-color .25s; }
+      /* ---- v3: agents dialog, rooms, password reset ---- */
+    [hidden] { display: none !important; }
+    .agents-cta { background: linear-gradient(135deg, #ecfdf5, #eef2ff); border: 1px solid #d1fae5; border-radius: 16px; padding: 22px; text-align: center; margin-bottom: 10px; }
+    .agents-cta p { margin: 0 0 14px; color: #475569; font-size: 14px; }
+    .agents-open-btn { background: linear-gradient(135deg, #16a34a, #15803d); color: #fff; border: none; padding: 14px 26px; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'Poppins', sans-serif; box-shadow: 0 6px 18px rgba(22,163,74,.3); }
+    .agents-open-btn:hover { opacity: .92; }
+    #agentsDialog { width: min(780px, 94vw); max-width: 780px; }
+    #agentsDialog .filter-row { margin-bottom: 10px; }
+    #agentsDialog #search { padding: 12px 14px; }
+    a.provider { text-decoration: none; color: inherit; cursor: pointer; gap: 12px; }
+    a.provider:hover { box-shadow: 0 6px 18px rgba(22,163,74,.18); }
+    .provider-right { text-align: right; flex-shrink: 0; }
+    .provider-go { display: block; font-size: 11px; font-weight: 700; color: #6d28d9; margin-top: 2px; }
+    .hero-stat.clickable { cursor: pointer; }
+    .hero-stat.clickable .hero-stat-label { text-decoration: underline dotted; }
+    .agents-note { font-size: 12px; color: #94a3b8; margin: 14px 0 0; text-align: center; }
+
+    .auth-help { font-size: 13px; color: #64748b; margin: 4px 0 6px; line-height: 1.5; }
+    .auth-link { background: none; border: none; color: #7c3aed; font-weight: 700; font-size: 13px; cursor: pointer; padding: 8px 0 0; font-family: 'Poppins', sans-serif; text-align: center; }
+    .auth-link:hover { text-decoration: underline; }
+    .show-pw { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #64748b; margin-top: 8px; cursor: pointer; }
+    .auth-form .show-pw input { width: auto; padding: 0; }
+
+    .form-box textarea { width: 100%; min-height: 80px; padding: 12px 14px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; font-family: 'Poppins', sans-serif; background: #fff; resize: vertical; box-sizing: border-box; }
+    .form-box textarea:focus { outline: none; border-color: #16a34a; }
+    .rm-step { font-size: 12px; font-weight: 800; color: #6d28d9; text-transform: uppercase; letter-spacing: .6px; margin: 18px 0 8px; }
+    .rm-help { font-size: 12px; color: #64748b; margin: -4px 0 8px; }
+    .chip-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+    .chip-check { cursor: pointer; }
+    .chip-check input { position: absolute; opacity: 0; pointer-events: none; }
+    .chip-check span { display: inline-block; padding: 8px 12px; border: 2px solid #e5e7eb; border-radius: 999px; font-size: 13px; font-weight: 600; background: #fff; color: #334155; transition: all .15s; }
+    .chip-check input:checked + span { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+    .chip-check input:focus-visible + span { outline: 2px solid #7c3aed; outline-offset: 2px; }
+    .slot-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    @media (max-width: 700px) { .slot-grid { grid-template-columns: repeat(2, 1fr); } }
+    .slot { position: relative; }
+    .slot-box { display: flex; align-items: center; justify-content: center; aspect-ratio: 4 / 3; border: 2px dashed #cbd5e1; border-radius: 12px; background: #f8fafc; cursor: pointer; overflow: hidden; color: #64748b; font-size: 22px; flex-direction: column; }
+    .slot-box:hover { border-color: #7c3aed; background: #f5f3ff; }
+    .slot-box small { font-size: 11px; font-weight: 700; }
+    .slot-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .slot-label { font-size: 11px; font-weight: 700; color: #475569; margin-top: 5px; text-align: center; }
+    .slot-clear { position: absolute; top: 5px; right: 5px; width: 22px; height: 22px; border-radius: 50%; background: rgba(15,23,42,.75); color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .room-cover { position: relative; }
+    .room-price { position: absolute; left: 10px; bottom: 10px; background: rgba(15,23,42,.85); color: #fff; padding: 5px 12px; border-radius: 999px; font-size: 14px; font-weight: 800; }
+    .room-thumbs { display: flex; gap: 8px; margin-top: 6px; overflow-x: auto; }
+    .room-thumbs figure { margin: 0; text-align: center; cursor: pointer; flex-shrink: 0; }
+    .room-thumbs img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; border: 2px solid transparent; display: block; }
+    .room-thumbs figure:hover img { border-color: #7c3aed; }
+    .room-thumbs figcaption { font-size: 9px; font-weight: 700; color: #64748b; margin-top: 2px; }
+    .room-address { font-size: 13px; font-weight: 600; color: #334155; margin: 6px 0; }
+    .room-address a { color: #6d28d9; font-weight: 700; text-decoration: none; margin-left: 6px; }
+    .room-address.locked { color: #94a3b8; font-weight: 600; font-style: italic; }
+    .room-chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0; }
+    .room-chips span { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: #f1f5f9; color: #334155; }
+    .room-chips span.am { background: #ede9fe; color: #5b21b6; }
+    .room-chips span.rl { background: #ecfdf5; color: #047857; }
+    html[data-theme="dark"] .agents-cta { background: linear-gradient(135deg, #14281f, #1e1b4b); border-color: #334155; }
+    html[data-theme="dark"] .agents-cta p, html[data-theme="dark"] .auth-help, html[data-theme="dark"] .show-pw, html[data-theme="dark"] .rm-help, html[data-theme="dark"] .slot-label { color: #94a3b8; }
+    html[data-theme="dark"] .provider-go, html[data-theme="dark"] .auth-link, html[data-theme="dark"] .rm-step, html[data-theme="dark"] .room-address a { color: #c4b5fd; }
+    html[data-theme="dark"] .form-box textarea { background: #0f172a; color: #f1f5f9; border-color: #475569; }
+    html[data-theme="dark"] .chip-check span { background: #0f172a; border-color: #475569; color: #e2e8f0; }
+    html[data-theme="dark"] .chip-check input:checked + span { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+    html[data-theme="dark"] .slot-box { background: #0f172a; border-color: #475569; color: #94a3b8; }
+    html[data-theme="dark"] .slot-box:hover { background: #1e1b4b; }
+    html[data-theme="dark"] .room-address { color: #e2e8f0; }
+    html[data-theme="dark"] .room-address.locked { color: #94a3b8; }
+    html[data-theme="dark"] .room-chips span { background: #334155; color: #e2e8f0; }
+    html[data-theme="dark"] .room-chips span.am { background: #2e1065; color: #ddd6fe; }
+    html[data-theme="dark"] .room-chips span.rl { background: #064e3b; color: #a7f3d0; }
+    html[data-theme="dark"] .room-thumbs figcaption { color: #94a3b8; }
+    html[data-theme="dark"] #roomWho, html[data-theme="dark"] #roomSort { background:#0f172a; color:#f1f5f9; border-color:#475569 !important; }
   </style>
 </head>
 <body>
@@ -652,6 +723,7 @@
         <a class="hero-nav-btn" href="#marketplaceSection">🏙️ Marketplace</a>
         <a class="hero-nav-btn" href="#rentalsSection">🚗 Rentals</a>
         <a class="hero-nav-btn" href="#itemsSection">📦 Items</a>
+        <a class="hero-nav-btn" href="#roomsSection">🏠 Rooms</a>
         <button class="hero-nav-btn" id="messagesNavBtn" onclick="openInbox()" style="display:none;">💬 Messages</button>
         <button class="hero-nav-btn theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Switch light / dark mode" aria-label="Switch light or dark mode">🌙</button>
         <a class="hero-nav-btn" id="adminNavBtn" href="admin.html" style="display:none;">🛡️ Admin</a>
@@ -671,7 +743,7 @@
             <div class="hero-stat-num">20+</div>
             <div class="hero-stat-label">Currencies</div>
           </div>
-          <div class="hero-stat">
+          <div class="hero-stat clickable" onclick="openAgents()" title="Compare remittance agents">
             <div class="hero-stat-num">13</div>
             <div class="hero-stat-label">Remittance agents</div>
           </div>
@@ -696,11 +768,6 @@
         </div>
         <div class="converter-result" id="converterResult">--</div>
 
-        <div class="trending-list" id="trendingList" style="margin-top:14px;">
-          <div class="trend-item"><span class="code">USD</span><span id="trend-USD">--</span></div>
-          <div class="trend-item"><span class="code">EUR</span><span id="trend-EUR">--</span></div>
-          <div class="trend-item"><span class="code">PKR</span><span id="trend-PKR">--</span></div>
-        </div>
       </div>
     </div>
   </div>
@@ -732,7 +799,7 @@
         <h3 id="authDialogTitle">Sign In</h3>
         <button class="close-btn" onclick="document.getElementById('authDialog').close()">✕</button>
       </div>
-      <div class="auth-tabs">
+      <div class="auth-tabs" id="authTabs">
         <button class="auth-tab active" id="tabLogin" onclick="switchAuthTab('login')">Sign In</button>
         <button class="auth-tab" id="tabRegister" onclick="switchAuthTab('register')">Create Account</button>
       </div>
@@ -742,7 +809,9 @@
         <input id="loginEmail" type="email" placeholder="you@example.com">
         <label class="auth-label">🔒 Password</label>
         <input id="loginPassword" type="password" placeholder="Your password">
+        <label class="show-pw"><input type="checkbox" onchange="toggleShowPw(this, ['loginPassword'])"> Show password</label>
         <button class="auth-submit-btn" onclick="doLogin()">Sign In</button>
+        <button class="auth-link" type="button" onclick="showAuthPanel('forgot'); document.getElementById('forgotEmail').value = document.getElementById('loginEmail').value;">Forgot your password?</button>
         <p id="loginMsg" class="auth-msg"></p>
       </div>
 
@@ -755,8 +824,30 @@
         <input id="regPhone" type="tel" placeholder="e.g. +49...">
         <label class="auth-label">🔒 Password</label>
         <input id="regPassword" type="password" placeholder="At least 6 characters">
+        <label class="show-pw"><input type="checkbox" onchange="toggleShowPw(this, ['regPassword'])"> Show password</label>
         <button class="auth-submit-btn" onclick="doRegister()">Create Account</button>
         <p id="registerMsg" class="auth-msg"></p>
+      </div>
+
+      <div id="forgotForm" class="auth-form" style="display:none;">
+        <p class="auth-help">No problem! Enter the email you signed up with and we'll send you a link to choose a new password.</p>
+        <label class="auth-label">📧 Email</label>
+        <input id="forgotEmail" type="email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doForgot()">
+        <button class="auth-submit-btn" onclick="doForgot()">Send me a reset link</button>
+        <p id="forgotMsg" class="auth-msg"></p>
+        <p class="auth-help" style="text-align:center;">Nothing in your inbox? Check spam, or write to <a href="mailto:admin@globalrate.space" style="color:#7c3aed;font-weight:700;">admin@globalrate.space</a>.</p>
+        <button class="auth-link" type="button" onclick="showAuthPanel('login')">← Back to sign in</button>
+      </div>
+
+      <div id="resetForm" class="auth-form" style="display:none;">
+        <p class="auth-help">Choose a new password for your account (at least 6 characters).</p>
+        <label class="auth-label">🔒 New password</label>
+        <input id="resetPassword" type="password" placeholder="New password">
+        <label class="auth-label">🔒 Repeat it</label>
+        <input id="resetPassword2" type="password" placeholder="Repeat new password" onkeydown="if(event.key==='Enter')doResetPassword()">
+        <label class="show-pw"><input type="checkbox" onchange="toggleShowPw(this, ['resetPassword','resetPassword2'])"> Show password</label>
+        <button class="auth-submit-btn" onclick="doResetPassword()">Save new password</button>
+        <p id="resetMsg" class="auth-msg"></p>
       </div>
     </div>
   </dialog>
@@ -796,28 +887,42 @@
 
   <div class="bg-blob" style="width:220px; height:220px; background:#059669; top:2500px; right:-90px;"></div>
   <h3 class="section-title">💱 Compare remittance agents worldwide</h3>
-  <div class="filter-row">
-    <input id="search" type="text" placeholder="Search LemFi, Wise, MoneyGram...">
-    <button class="country-picker-btn" onclick="document.getElementById('countryDialog').showModal()">
-      🌍 <span id="selectedCountryLabel">All regions</span> ▾
-    </button>
-    <select id="regionFilter" style="display:none;">
-      <option value="All">All regions</option>
-      <option value="Global">Global</option>
-      <option value="Nigeria">Nigeria</option>
-      <option value="Kenya">Kenya</option>
-      <option value="Cameroon">Cameroon</option>
-      <option value="Bangladesh">Bangladesh</option>
-      <option value="Pakistan">Pakistan</option>
-      <option value="Algeria">Algeria</option>
-      <option value="Morocco">Morocco</option>
-      <option value="Turkey">Turkey</option>
-      <option value="Lithuania">Lithuania</option>
-      <option value="Africa">Africa (general)</option>
-    </select>
+  <div class="agents-cta">
+    <p>Sending money abroad? Compare popular transfer apps side by side and jump straight to their official sites.</p>
+    <button class="agents-open-btn" onclick="openAgents()">💱 Compare remittance agents</button>
   </div>
-  <p class="filter-hint">💡 Choose a country to see local remittance agents and currency</p>
-  <div id="providerList"></div>
+
+  <dialog id="agentsDialog">
+    <div class="dialog-inner">
+      <div class="dialog-header">
+        <h3>💱 Remittance agents</h3>
+        <button class="close-btn" onclick="document.getElementById('agentsDialog').close()">✕</button>
+      </div>
+      <div class="filter-row">
+        <input id="search" type="text" placeholder="Search LemFi, Wise, MoneyGram...">
+        <button class="country-picker-btn" onclick="document.getElementById('countryDialog').showModal()">
+          🌍 <span id="selectedCountryLabel">All regions</span> ▾
+        </button>
+        <select id="regionFilter" style="display:none;">
+          <option value="All">All regions</option>
+          <option value="Global">Global</option>
+          <option value="Nigeria">Nigeria</option>
+          <option value="Kenya">Kenya</option>
+          <option value="Cameroon">Cameroon</option>
+          <option value="Bangladesh">Bangladesh</option>
+          <option value="Pakistan">Pakistan</option>
+          <option value="Algeria">Algeria</option>
+          <option value="Morocco">Morocco</option>
+          <option value="Turkey">Turkey</option>
+          <option value="Lithuania">Lithuania</option>
+          <option value="Africa">Africa (general)</option>
+        </select>
+      </div>
+      <p class="filter-hint">💡 Choose a country to see local agents. Tap any agent to open its official website.</p>
+      <div id="providerList"></div>
+      <p class="agents-note">Rates are indicative — they come from community submissions and are converted into your selected currency using live exchange rates, so they may differ from what the provider shows. Always check the provider directly before sending money.</p>
+    </div>
+  </dialog>
 
   <dialog id="countryDialog">
     <div class="dialog-inner">
@@ -829,7 +934,6 @@
     </div>
   </dialog>
 
-  <p class="disclaimer">Provider rates are stored in Naira and auto-converted into whichever currency is selected above using live exchange rates. Figures include community submissions and may not reflect live app rates. Base currency rates refresh from a live source every 30 minutes; small movements shown in between simulate market ticking. Always check the provider directly before sending money.</p>
 
   <div class="marketplace-section" id="marketplaceSection">
     <h3 class="section-title">🏙️ Local Currency Marketplace</h3>
@@ -994,6 +1098,128 @@
     </div>
   </div>
 
+  <div class="marketplace-section" id="roomsSection">
+    <h3 class="section-title">🏠 Rooms to Let & Flat-Sharing</h3>
+    <p class="marketplace-intro">Have a spare room in your apartment, or looking for one? Post it with the full address, photos of each space and your house details — then chat directly with students and tenants. No agent fees.</p>
+    <div class="marketplace-safety">
+      ⚠️ Safety first: view the place in person before paying, ask for a written rental agreement, and never send a deposit to someone you haven't met.
+    </div>
+    <div class="filter-row">
+      <input id="roomSearch" type="text" placeholder="Search rooms (e.g. Naujamiestis, near university)..." oninput="renderRooms()" style="flex:2;min-width:180px;padding:12px 14px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'Poppins',sans-serif;">
+      <select id="roomTypeFilter" onchange="renderRooms()" style="flex:1;min-width:140px;padding:12px 14px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'Poppins',sans-serif;"></select>
+      <input id="roomMaxPrice" type="number" min="0" placeholder="Max € / month" oninput="renderRooms()" style="flex:1;min-width:120px;padding:12px 14px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'Poppins',sans-serif;">
+      <select id="roomWho" onchange="renderRooms()" style="flex:1;min-width:130px;padding:12px 14px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'Poppins',sans-serif;">
+        <option value="">Suitable for: anyone</option><option value="f">👩 Women</option><option value="m">👨 Men</option>
+      </select>
+      <select id="roomSort" onchange="renderRooms()" style="flex:1;min-width:130px;padding:12px 14px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'Poppins',sans-serif;">
+        <option value="new">Newest first</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option>
+      </select>
+    </div>
+    <div class="marketplace-grid" id="roomsList"></div>
+
+    <div id="roomsLocked" class="marketplace-locked">
+      <p>🔒 Sign in or create a free account to post a room.</p>
+      <button class="hero-nav-btn account-btn" onclick="openAuthDialog()">👤 Sign In / Create Account</button>
+    </div>
+
+    <div id="roomsForm" class="form-box" style="display:none;">
+      <h3>🏠 Post a room</h3>
+      <p class="marketplace-posting-as" id="roomsPostingAsLabel"></p>
+
+      <div class="rm-step">1 · The place</div>
+      <div class="form-row">
+        <div style="flex:2; min-width:200px;">
+          <label class="mkt-field-label">🏷️ Title *</label>
+          <input id="rmTitle" type="text" maxlength="100" placeholder="e.g. Bright room in 3-person flat near VilniusTech">
+        </div>
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">🛏️ Type</label>
+          <select id="rmType"></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex:1; min-width:120px;">
+          <label class="mkt-field-label">📐 Room size (m², optional)</label>
+          <input id="rmSize" type="number" min="0" placeholder="e.g. 14">
+        </div>
+        <div style="flex:1; min-width:120px;">
+          <label class="mkt-field-label">🛋️ Furnished?</label>
+          <select id="rmFurnished"><option value="yes">Furnished</option><option value="no">Unfurnished</option></select>
+        </div>
+      </div>
+
+      <div class="rm-step">2 · Where is it?</div>
+      <div class="form-row">
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">🏙️ City *</label>
+          <input id="rmCity" type="text" placeholder="e.g. Vilnius">
+        </div>
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">📍 Area / district</label>
+          <input id="rmArea" type="text" placeholder="e.g. Saulėtekis">
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex:1 1 100%;">
+          <label class="mkt-field-label">🏠 Street address & flat number *</label>
+          <input id="rmAddress" type="text" maxlength="140" placeholder="e.g. Saulėtekio al. 11, flat 24">
+        </div>
+      </div>
+      <p class="rm-help">🔒 The full address is shown only to signed-in users. Everyone else sees the city and area.</p>
+
+      <div class="rm-step">3 · Money</div>
+      <div class="form-row">
+        <div style="flex:1; min-width:120px;">
+          <label class="mkt-field-label">💶 Rent (€ / month) *</label>
+          <input id="rmPrice" type="number" min="0" placeholder="e.g. 280">
+        </div>
+        <div style="flex:1; min-width:120px;">
+          <label class="mkt-field-label">🔐 Deposit (€)</label>
+          <input id="rmDeposit" type="number" min="0" placeholder="e.g. 280">
+        </div>
+        <div style="flex:1; min-width:120px;">
+          <label class="mkt-field-label">💡 Bills</label>
+          <select id="rmBills"><option>Not included</option><option>Included</option><option>Partly included</option></select>
+        </div>
+      </div>
+
+      <div class="rm-step">4 · Flat-sharing</div>
+      <div class="form-row">
+        <div style="flex:1; min-width:120px;">
+          <label class="mkt-field-label">👥 Flatmates already living there</label>
+          <input id="rmFlatmates" type="number" min="0" max="12" placeholder="e.g. 2">
+        </div>
+        <div style="flex:1; min-width:120px;">
+          <label class="mkt-field-label">🚻 Who can rent?</label>
+          <select id="rmGender"><option>Anyone</option><option>Female only</option><option>Male only</option></select>
+        </div>
+        <div style="flex:1; min-width:120px;">
+          <label class="mkt-field-label">🕒 Minimum stay</label>
+          <select id="rmMinStay"><option value="">No minimum</option><option value="1">1 month</option><option value="3">3 months</option><option value="6">6 months</option><option value="12">12 months</option></select>
+        </div>
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">📅 Available from</label>
+          <input id="rmFrom" type="date">
+        </div>
+      </div>
+
+      <div class="rm-step">5 · What's in the flat?</div>
+      <div class="chip-grid" id="rmAmenities"></div>
+      <div class="rm-step">6 · House rules & who's welcome</div>
+      <div class="chip-grid" id="rmRules"></div>
+
+      <div class="rm-step">7 · Photos — tap a box to add each one</div>
+      <p class="rm-help">A clear cover photo gets the most replies. Each space has its own position so renters know what they're looking at.</p>
+      <div class="slot-grid" id="rmSlots"></div>
+
+      <div class="rm-step">8 · Tell people more</div>
+      <textarea id="rmDescription" maxlength="1000" placeholder="Who lives there, the atmosphere, kitchen and bathroom sharing, distance to campus or transport, what you're looking for in a flatmate..."></textarea>
+      <div style="height:12px"></div>
+      <button onclick="postRoom()">Post Room</button>
+      <p id="roomsMsg"></p>
+    </div>
+  </div>
+
   <dialog id="inboxDialog">
     <div class="dialog-inner">
       <div class="dialog-header">
@@ -1034,6 +1260,9 @@
     <div class="form-row">
       <input id="fName" type="text" placeholder="App name (e.g. LemFi)">
       <input id="fRate" type="number" placeholder="Rate in ₦ per $1 (e.g. 1345)">
+    </div>
+    <div class="form-row">
+      <input id="fUrl" type="url" placeholder="Official website (optional, https://...)">
     </div>
     <div class="form-row">
       <input id="fFee" type="text" placeholder="Fee (optional)">
@@ -1357,6 +1586,11 @@
       return ngnRate / baseNgnValue; // units of baseCurrency per 1 USD sent
     }
 
+    function openAgents() {
+      applyProviderFilters();
+      document.getElementById('agentsDialog').showModal();
+    }
+
     function renderProviders(list) {
       const container = document.getElementById('providerList');
       container.innerHTML = '';
@@ -1371,17 +1605,27 @@
         const displayRate = converted === null
           ? 'N/A'
           : `${symbol}${converted.toFixed(converted > 100 ? 0 : 2)}`;
+        const link = /^https?:\/\//i.test(p.url || '')
+          ? p.url
+          : 'https://www.google.com/search?q=' + encodeURIComponent(p.name + ' money transfer official site');
 
-        const div = document.createElement('div');
-        div.className = 'provider';
-        div.innerHTML = `
+        const a = document.createElement('a');
+        a.className = 'provider';
+        a.href = link;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.title = 'Open ' + p.name + ' in a new tab';
+        a.innerHTML = `
           <div>
-            <div class="provider-name">${p.name} <span class="region-tag">${p.region || 'Global'}</span> ${p.submitted ? '<span class="badge">Submitted</span>' : ''}</div>
-            <div class="provider-notes">${p.notes} • ${p.fee}</div>
+            <div class="provider-name">${esc(p.name)} <span class="region-tag">${esc(p.region || 'Global')}</span> ${p.submitted ? '<span class="badge">Submitted</span>' : ''}</div>
+            <div class="provider-notes">${esc(p.notes)} • ${esc(p.fee)}</div>
           </div>
-          <div class="provider-rate">${displayRate}</div>
+          <div class="provider-right">
+            <div class="provider-rate">${esc(displayRate)}</div>
+            <span class="provider-go">Visit site ↗</span>
+          </div>
         `;
-        container.appendChild(div);
+        container.appendChild(a);
       });
     }
 
@@ -1446,6 +1690,7 @@
       const fee = document.getElementById('fFee').value.trim();
       const notes = document.getElementById('fNotes').value.trim();
       const region = document.getElementById('fRegion').value;
+      const url = document.getElementById('fUrl').value.trim();
       const msg = document.getElementById('formMsg');
 
       if (!name || !rate) {
@@ -1457,7 +1702,7 @@
       fetch('/api/providers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, rate, fee, notes, region })
+        body: JSON.stringify({ name, rate, fee, notes, region, url })
       })
         .then(res => res.json())
         .then(() => {
@@ -1466,6 +1711,7 @@
           document.getElementById('fName').value = '';
           document.getElementById('fRate').value = '';
           document.getElementById('fFee').value = '';
+          document.getElementById('fUrl').value = '';
           document.getElementById('fNotes').value = '';
           loadProviders();
         })
@@ -1488,16 +1734,75 @@
     }
 
     function openAuthDialog() {
+      showAuthPanel('login');
       document.getElementById('authDialog').showModal();
     }
 
-    function switchAuthTab(tab) {
-      const isLogin = tab === 'login';
-      document.getElementById('tabLogin').classList.toggle('active', isLogin);
-      document.getElementById('tabRegister').classList.toggle('active', !isLogin);
-      document.getElementById('loginForm').style.display = isLogin ? 'flex' : 'none';
-      document.getElementById('registerForm').style.display = isLogin ? 'none' : 'flex';
-      document.getElementById('authDialogTitle').textContent = isLogin ? 'Sign In' : 'Create Account';
+    // One place to switch between: login, register, forgot (ask for link), reset (choose new password)
+    function showAuthPanel(name) {
+      const titles = { login: 'Sign In', register: 'Create Account', forgot: 'Forgot your password?', reset: 'Choose a new password' };
+      ['login', 'register', 'forgot', 'reset'].forEach(n => {
+        document.getElementById(n + 'Form').style.display = (n === name) ? 'flex' : 'none';
+      });
+      document.getElementById('authTabs').style.display = (name === 'login' || name === 'register') ? 'flex' : 'none';
+      document.getElementById('tabLogin').classList.toggle('active', name === 'login');
+      document.getElementById('tabRegister').classList.toggle('active', name === 'register');
+      document.getElementById('authDialogTitle').textContent = titles[name];
+      ['loginMsg', 'registerMsg', 'forgotMsg', 'resetMsg'].forEach(id => { const m = document.getElementById(id); if (m) m.textContent = ''; });
+    }
+
+    function switchAuthTab(tab) { showAuthPanel(tab === 'login' ? 'login' : 'register'); }
+
+    function toggleShowPw(cb, ids) {
+      ids.forEach(id => { document.getElementById(id).type = cb.checked ? 'text' : 'password'; });
+    }
+
+    function doForgot() {
+      const email = document.getElementById('forgotEmail').value.trim();
+      const msg = document.getElementById('forgotMsg');
+      if (!email) { msg.textContent = 'Please enter your email.'; msg.style.color = '#dc2626'; return; }
+      msg.textContent = 'Sending...'; msg.style.color = '#64748b';
+      fetch('/api/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Something went wrong');
+          return data;
+        })
+        .then(data => { msg.textContent = '✅ ' + data.message; msg.style.color = '#16a34a'; })
+        .catch(err => { msg.textContent = err.message; msg.style.color = '#dc2626'; });
+    }
+
+    function doResetPassword() {
+      const p1 = document.getElementById('resetPassword').value;
+      const p2 = document.getElementById('resetPassword2').value;
+      const msg = document.getElementById('resetMsg');
+      if (p1.length < 6) { msg.textContent = 'Password must be at least 6 characters.'; msg.style.color = '#dc2626'; return; }
+      if (p1 !== p2) { msg.textContent = 'The two passwords do not match.'; msg.style.color = '#dc2626'; return; }
+      fetch('/api/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: window._resetToken, password: p1 }) })
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Could not reset password');
+          return data;
+        })
+        .then(data => {
+          authToken = data.token;
+          currentUser = data.user;
+          localStorage.setItem('authToken', authToken);
+          history.replaceState(null, '', location.pathname);
+          msg.textContent = '✅ Password updated — you are signed in.'; msg.style.color = '#16a34a';
+          updateAccountUI();
+          loadMarketplace();
+          setTimeout(() => document.getElementById('authDialog').close(), 1400);
+        })
+        .catch(err => {
+          msg.innerHTML = '';
+          msg.textContent = err.message + ' ';
+          msg.style.color = '#dc2626';
+          const b = document.createElement('button');
+          b.className = 'auth-link'; b.textContent = 'Request a new link';
+          b.onclick = () => { history.replaceState(null, '', location.pathname); showAuthPanel('forgot'); };
+          msg.appendChild(b);
+        });
     }
 
     function doLogin() {
@@ -1579,7 +1884,7 @@
     }
 
     function updateAccountUI() {
-      setTimeout(() => { if (typeof renderItems === 'function') renderItems(); }, 0);
+      setTimeout(() => { if (typeof renderItems === 'function') renderItems(); if (typeof loadRooms === 'function') { const k = currentUser ? currentUser.id : ''; if (window._roomsKey !== k) { window._roomsKey = k; loadRooms(); } else { renderRooms(); } } }, 0);
       const btn = document.getElementById('accountNavBtn');
       const locked = document.getElementById('marketplaceLocked');
       const form = document.getElementById('marketplaceForm');
@@ -1587,6 +1892,8 @@
       const rForm = document.getElementById('rentalsForm');
       const iLocked = document.getElementById('itemsLocked');
       const iForm = document.getElementById('itemsForm');
+      const rmLocked = document.getElementById('roomsLocked');
+      const rmForm = document.getElementById('roomsForm');
       const msgBtn = document.getElementById('messagesNavBtn');
       const adminBtn = document.getElementById('adminNavBtn');
       if (adminBtn) adminBtn.style.display = (currentUser && currentUser.canAdmin) ? 'inline-block' : 'none';
@@ -1600,6 +1907,9 @@
         rForm.style.display = 'block';
         iLocked.style.display = 'none';
         iForm.style.display = 'block';
+        rmLocked.style.display = 'none';
+        rmForm.style.display = 'block';
+        document.getElementById('roomsPostingAsLabel').textContent = `Posting as ${currentUser.name} • 📱 ${currentUser.phone}`;
         document.getElementById('itemsPostingAsLabel').textContent = `Posting as ${currentUser.name} • 📱 ${currentUser.phone}`;
         msgBtn.style.display = 'inline-block';
         document.getElementById('postingAsLabel').textContent = `Posting as ${currentUser.name} • 📱 ${currentUser.phone}`;
@@ -1613,6 +1923,8 @@
         rForm.style.display = 'none';
         iLocked.style.display = 'block';
         iForm.style.display = 'none';
+        rmLocked.style.display = 'block';
+        rmForm.style.display = 'none';
         msgBtn.style.display = 'none';
       }
     }
@@ -1620,7 +1932,7 @@
     // --- Owner/admin moderation: remove any listing from the public page once admin is unlocked ---
     function decorateAdminButtons() {
       if (!currentUser || !currentUser.isAdmin) return;
-      ['marketplaceList', 'rentalsList', 'itemsList'].forEach(id => {
+      ['marketplaceList', 'rentalsList', 'itemsList', 'roomsList'].forEach(id => {
         const box = document.getElementById(id);
         if (!box) return;
         box.querySelectorAll('.listing-card[data-lid]').forEach(card => {
@@ -1631,12 +1943,12 @@
           b.textContent = '🛡️ Remove (admin)';
           b.onclick = () => askConfirm('Remove this listing?', 'You are removing another user\'s listing as admin. This cannot be undone.', () =>
             fetch(`/api/admin/listings/${card.dataset.lkind}/${card.dataset.lid}`, { method: 'DELETE', headers: apiHeaders() })
-              .then(() => { loadMarketplace(); loadRentals(); loadItems(); }));
+              .then(() => { loadMarketplace(); loadRentals(); loadItems(); loadRooms(); }));
           card.appendChild(b);
         });
       });
     }
-    ['marketplaceList', 'rentalsList', 'itemsList'].forEach(id => {
+    ['marketplaceList', 'rentalsList', 'itemsList', 'roomsList'].forEach(id => {
       const box = document.getElementById(id);
       if (box) new MutationObserver(decorateAdminButtons).observe(box, { childList: true });
     });
@@ -2042,6 +2354,213 @@
         .catch(err => { msg.textContent = err.message; msg.style.color = '#dc2626'; });
     }
 
+    // --- Rooms to let & flat-sharing (labelled photo slots) ---
+    const ROOM_TYPES = ['Room in shared apartment', 'Private room', 'Studio', 'Whole apartment', 'Bed in dorm'];
+    const ROOM_ICONS = { 'Room in shared apartment':'🛏️','Private room':'🚪','Studio':'🏢','Whole apartment':'🏠','Bed in dorm':'🎓' };
+    const ROOM_SLOTS = ['Cover photo', 'Bedroom', 'Kitchen', 'Bathroom', 'Living area'];
+    const ROOM_AMENITIES = { 'WiFi':'📶','Washing machine':'🧺','Dishwasher':'🍽️','Heating':'🔥','Air conditioning':'❄️','Balcony':'🌇','Elevator':'🛗','Parking':'🅿️','Desk / study space':'📚','Near public transport':'🚋' };
+    const ROOM_RULES = { 'Students welcome':'🎓','Couples OK':'💑','Pets OK':'🐾','Smoking OK':'🚬' };
+    let allRooms = [];
+    let roomSlotData = [null, null, null, null, null];
+
+    (function initRoomForm() {
+      const t = document.getElementById('rmType');
+      const f = document.getElementById('roomTypeFilter');
+      f.innerHTML = '<option value="">All types</option>';
+      ROOM_TYPES.forEach(c => {
+        t.insertAdjacentHTML('beforeend', `<option value="${c}">${ROOM_ICONS[c]} ${c}</option>`);
+        f.insertAdjacentHTML('beforeend', `<option value="${c}">${ROOM_ICONS[c]} ${c}</option>`);
+      });
+      const chips = (box, map) => {
+        const el = document.getElementById(box);
+        Object.keys(map).forEach(k => el.insertAdjacentHTML('beforeend',
+          `<label class="chip-check"><input type="checkbox" value="${k}"><span>${map[k]} ${k}</span></label>`));
+      };
+      chips('rmAmenities', ROOM_AMENITIES);
+      chips('rmRules', ROOM_RULES);
+      buildRoomSlots();
+    })();
+
+    function buildRoomSlots() {
+      const grid = document.getElementById('rmSlots');
+      grid.innerHTML = '';
+      ROOM_SLOTS.forEach((label, i) => {
+        grid.insertAdjacentHTML('beforeend', `
+          <div class="slot">
+            <label class="slot-box">
+              <input type="file" accept="image/*" hidden onchange="pickRoomSlot(${i}, this)">
+              <span class="slot-empty" id="slotEmpty${i}">＋<small>Add photo</small></span>
+              <img class="slot-img" id="slotImg${i}" alt="" hidden>
+            </label>
+            <span class="slot-clear" id="slotClear${i}" onclick="clearRoomSlot(${i})" title="Remove photo" hidden>✕</span>
+            <div class="slot-label">${i + 1} · ${label}${i === 0 ? ' ★' : ''}</div>
+          </div>`);
+      });
+    }
+
+    async function pickRoomSlot(i, input) {
+      const file = input.files && input.files[0];
+      const msg = document.getElementById('roomsMsg');
+      if (!file) return;
+      try {
+        const data = await shrinkImage(file);
+        roomSlotData[i] = data;
+        const img = document.getElementById('slotImg' + i);
+        img.src = data; img.hidden = false;
+        document.getElementById('slotEmpty' + i).hidden = true;
+        document.getElementById('slotClear' + i).hidden = false;
+      } catch (e) { msg.textContent = e.message; msg.style.color = '#dc2626'; }
+      input.value = '';
+    }
+
+    function clearRoomSlot(i) {
+      roomSlotData[i] = null;
+      document.getElementById('slotImg' + i).hidden = true;
+      document.getElementById('slotEmpty' + i).hidden = false;
+      document.getElementById('slotClear' + i).hidden = true;
+    }
+
+    function loadRooms() {
+      fetch('/api/rooms', { headers: apiHeaders() }).then(r => r.json()).then(list => { allRooms = list; renderRooms(); }).catch(() => {});
+    }
+
+    function renderRooms() {
+      const container = document.getElementById('roomsList');
+      if (!container) return;
+      const q = document.getElementById('roomSearch').value.trim().toLowerCase();
+      const type = document.getElementById('roomTypeFilter').value;
+      const max = parseFloat(document.getElementById('roomMaxPrice').value);
+      const who = document.getElementById('roomWho').value;
+      const sort = document.getElementById('roomSort').value;
+      let list = allRooms.filter(l =>
+        (!type || l.roomType === type) &&
+        (isNaN(max) || l.price <= max) &&
+        (who !== 'f' || l.genderPref !== 'Male only') &&
+        (who !== 'm' || l.genderPref !== 'Female only') &&
+        (!q || [l.title, l.description, l.roomType, l.city, l.area, (l.amenities || []).join(' ')].join(' ').toLowerCase().includes(q)));
+      if (sort === 'low') list = list.sort((a, b) => a.price - b.price);
+      if (sort === 'high') list = list.sort((a, b) => b.price - a.price);
+      container.innerHTML = '';
+      if (!list.length) {
+        container.innerHTML = '<p class="listing-empty">' + (allRooms.length ? 'No rooms match your search.' : 'No rooms listed yet — be the first to post one.') + '</p>';
+        return;
+      }
+      list.forEach(l => {
+        const status = l.status || 'available';
+        const isOwner = currentUser && l.ownerId === currentUser.id;
+        const div = document.createElement('div');
+        div.className = `listing-card status-${status}`;
+        div.dataset.lid = l.id; div.dataset.lkind = 'room'; div.dataset.owner = l.ownerId;
+        const photos = l.photos || [], labels = l.photoLabels || [];
+        const cover = photos.length
+          ? `<img class="item-photo" src="${esc(photos[0])}" alt="${esc(l.title)}" loading="lazy" onclick="showPhoto('${esc(photos[0])}')">`
+          : `<div class="item-photo-none">${ROOM_ICONS[l.roomType] || '🏠'}</div>`;
+        const thumbs = photos.length > 1
+          ? `<div class="room-thumbs">${photos.slice(1).map((p, i) => `<figure onclick="showPhoto('${esc(p)}')"><img src="${esc(p)}" alt="${esc(labels[i + 1] || '')}" loading="lazy"><figcaption>${esc(labels[i + 1] || 'Photo')}</figcaption></figure>`).join('')}</div>` : '';
+        let actions = '';
+        if (isOwner) {
+          actions = `<div class="listing-actions">
+              ${status === 'available'
+                ? `<button class="listing-action-btn warn" onclick="updateRoomStatus('${l.id}','rented')">🔑 Mark Rented</button>`
+                : `<button class="listing-action-btn success" onclick="updateRoomStatus('${l.id}','available')">✅ Mark Available</button>`}
+              <button class="listing-action-btn danger" onclick="removeRoom('${l.id}')">🗑️ Remove</button>
+            </div>`;
+        } else if (currentUser) {
+          const summary = `${l.title} — €${l.price}/month`;
+          actions = `<div class="listing-actions">
+              <button class="listing-chat-btn" data-sum="${esc(summary)}" data-owner="${esc(l.ownerId)}" data-name="${esc(l.posterName)}" onclick="openChat('room','${l.id}',this.dataset.sum,this.dataset.owner,this.dataset.name)">💬 Chat with ${esc(l.posterName.split(' ')[0])}</button>
+            </div>`;
+        }
+        const info = [];
+        if (l.furnished === false) info.push('🪑 Unfurnished'); else info.push('🛋️ Furnished');
+        if (l.flatmates != null) info.push(l.flatmates === 0 ? '👤 No flatmates' : `👥 ${l.flatmates} flatmate${l.flatmates === 1 ? '' : 's'}`);
+        if (l.roomSize) info.push(`📐 ${esc(l.roomSize)} m²`);
+        info.push(`💡 Bills ${esc((l.bills || 'Not included').toLowerCase())}`);
+        if (l.deposit != null) info.push(`🔐 Deposit €${esc(l.deposit)}`);
+        if (l.availableFrom) info.push(`📅 From ${esc(l.availableFrom)}`);
+        if (l.minStay) info.push(`🕒 Min ${esc(l.minStay)} mo`);
+        if (l.genderPref && l.genderPref !== 'Anyone') info.push(l.genderPref === 'Female only' ? '👩 Women only' : '👨 Men only');
+        const chips = info.map(t => `<span>${t}</span>`).join('') +
+          (l.amenities || []).map(a => `<span class="am">${ROOM_AMENITIES[a] || '✔️'} ${esc(a)}</span>`).join('') +
+          (l.rules || []).map(a => `<span class="rl">${ROOM_RULES[a] || '✔️'} ${esc(a)}</span>`).join('');
+        const place = [l.area, l.city].filter(Boolean).join(', ') || l.location || '';
+        const addr = l.address
+          ? `<div class="room-address">🏠 ${esc(l.address)}<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.address + ', ' + (l.city || ''))}" target="_blank" rel="noopener noreferrer">🗺️ Map</a></div>`
+          : (l.addressHidden ? `<div class="room-address locked">🔒 Sign in to see the full street address</div>` : '');
+        div.innerHTML = `
+          <div class="room-cover">${cover}<span class="room-price">€${esc(l.price)} / month</span></div>${thumbs}
+          <div class="listing-swap" style="margin-top:10px;">${ROOM_ICONS[l.roomType] || '🏠'} ${esc(l.title)}<span class="listing-status-badge">${status === 'available' ? 'Available' : 'Rented'}</span></div>
+          <div class="item-tags">${esc(l.roomType)} • 📍 ${esc(place)}</div>
+          ${addr}
+          <div class="room-chips">${chips}</div>
+          ${l.description ? `<div class="listing-notes">${esc(l.description)}</div>` : ''}
+          <div class="listing-location">${timeAgo(l.postedAt)}</div>
+          <div class="listing-poster">${esc(l.posterName)}</div>
+          <div class="listing-phone">📱 ${esc(l.phone)}</div>
+          ${actions}`;
+        container.appendChild(div);
+      });
+    }
+
+    function updateRoomStatus(id, status) {
+      fetch(`/api/rooms/${id}`, { method: 'PATCH', headers: apiHeaders(), body: JSON.stringify({ status }) }).then(() => loadRooms());
+    }
+
+    function removeRoom(id) {
+      askConfirm('Delete this room listing?', 'This will permanently remove it and its photos. This cannot be undone.', () =>
+        fetch(`/api/rooms/${id}`, { method: 'DELETE', headers: apiHeaders() }).then(() => loadRooms()));
+    }
+
+    function checkedValues(boxId) {
+      return Array.from(document.querySelectorAll(`#${boxId} input:checked`)).map(i => i.value);
+    }
+
+    function postRoom() {
+      const msg = document.getElementById('roomsMsg');
+      const body = {
+        title: document.getElementById('rmTitle').value.trim(),
+        roomType: document.getElementById('rmType').value,
+        roomSize: document.getElementById('rmSize').value.trim(),
+        furnished: document.getElementById('rmFurnished').value,
+        city: document.getElementById('rmCity').value.trim(),
+        area: document.getElementById('rmArea').value.trim(),
+        address: document.getElementById('rmAddress').value.trim(),
+        price: document.getElementById('rmPrice').value.trim(),
+        deposit: document.getElementById('rmDeposit').value.trim(),
+        bills: document.getElementById('rmBills').value,
+        flatmates: document.getElementById('rmFlatmates').value.trim(),
+        genderPref: document.getElementById('rmGender').value,
+        minStay: document.getElementById('rmMinStay').value,
+        availableFrom: document.getElementById('rmFrom').value,
+        amenities: checkedValues('rmAmenities'),
+        rules: checkedValues('rmRules'),
+        description: document.getElementById('rmDescription').value.trim(),
+        photoSlots: roomSlotData.map((data, i) => data ? { label: ROOM_SLOTS[i], data } : null).filter(Boolean)
+      };
+      if (!body.title || !body.price || !body.city || !body.address) {
+        msg.textContent = 'Please fill in the title, rent, city and street address (marked *).';
+        msg.style.color = '#dc2626';
+        return;
+      }
+      msg.textContent = 'Posting...'; msg.style.color = '#64748b';
+      fetch('/api/rooms', { method: 'POST', headers: apiHeaders(), body: JSON.stringify(body) })
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Could not post room');
+          return data;
+        })
+        .then(() => {
+          msg.textContent = 'Posted! Your room is now visible above.';
+          msg.style.color = '#16a34a';
+          ['rmTitle','rmSize','rmCity','rmArea','rmAddress','rmPrice','rmDeposit','rmFlatmates','rmFrom','rmDescription'].forEach(id => { document.getElementById(id).value = ''; });
+          document.querySelectorAll('#rmAmenities input, #rmRules input').forEach(i => { i.checked = false; });
+          roomSlotData = [null, null, null, null, null];
+          buildRoomSlots();
+          loadRooms();
+        })
+        .catch(err => { msg.textContent = err.message; msg.style.color = '#dc2626'; });
+    }
+
     // --- Direct chat between logged-in users, scoped to one listing ---
     let activeChat = null; // { listingType, listingId, listingSummary, otherUserId, otherName }
     let chatPollTimer = null;
@@ -2157,9 +2676,17 @@
     }
 
     checkAuthOnLoad();
+    (function openResetFromLink() {
+      const t = new URLSearchParams(location.search).get('reset');
+      if (!t) return;
+      window._resetToken = t;
+      showAuthPanel('reset');
+      document.getElementById('authDialog').showModal();
+    })();
     loadMarketplace();
     loadRentals();
     loadItems();
+    loadRooms();
 
     // --- Ask & Explore: keyword-matched smart search to real official sites ---
     const EXPLORE_KB = [
