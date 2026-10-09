@@ -3,28 +3,50 @@
 </p>
 
 <h1 align="center">GlobalRate</h1>
-<p align="center"><b>Live world currency rates · remittance agents · a local peer-to-peer marketplace</b><br>
-Built by <b>MightSmith</b> — inspired by everyday life in Lithuania 🇱🇹</p>
+<p align="center"><b>Live currency rates · peer-to-peer money exchange · rooms to let · gadgets · rentals</b><br>
+A free community marketplace for students and expats — built by <b>MightSmith</b> in Vilnius 🇱🇹</p>
 
-<p align="center"><a href="https://www.globalrate.space">www.globalrate.space</a></p>
+<p align="center">
+  <a href="https://www.globalrate.space"><b>🌍 Live site: www.globalrate.space</b></a>
+</p>
 
 ---
 
 ## What is GlobalRate?
 
-GlobalRate is a full-stack web app that helps people move, exchange and trade money and things locally:
+Moving abroad means exchanging money, finding a room, buying a phone and getting around — usually through scattered Facebook groups and WhatsApp chats. **GlobalRate puts it all in one place**, with real accounts, built-in chat and no agent fees.
 
-- **💱 Live rates & converter** — 20+ currencies (USD, EUR, GBP, CAD, AUD, CNY, JPY, INR, TRY, …) refreshed from a public rates API, with a ticking live feed and a cross-rate table.
-- **🌍 Remittance agents** — compare transfer apps (Wise, Remitly, WorldRemit, MoneyGram, …) by country.
-- **🤝 P2P currency exchange** — people post "I have € / I want $" listings with phone number and Available / Taken / Sold status.
-- **🚗 Rentals** — cars, taxi services, e-bikes and e-scooters rented person-to-person.
-- **📦 Items & gadgets** — sell phones, laptops, furniture and more, **with photos**, categories, search and filters.
-- **💬 Built-in chat** — logged-in users message each other about any listing; inbox included.
-- **🔐 Accounts** — sign up / log in (bcrypt-hashed passwords) and an automatic welcome email.
-- **🛡️ Owner admin panel** — stats, activity log, user & listing moderation, backup / restore.
-- **🌗 Dark & light mode** — follows the device, remembers the choice.
+### Features
+
+- 💱 **Peer-to-peer money exchange** — post what you have and what you need (e.g. EUR → USD) and meet someone nearby who wants the opposite.
+- 📈 **Live rates & converter** — world currency rates with a fast converter.
+- 🏠 **Rooms to let & flat-sharing** — room type, price, deposit, bills, flatmates, gender preference, minimum stay, amenities and house rules. Up to 5 **labelled photo slots** (cover, bedroom, kitchen, bathroom, living area). The **full street address is hidden until a user signs in**.
+- 📱 **Items & gadgets** — sell phones, laptops and more with multiple photos.
+- 🚗 **Car, taxi & e-bike rentals** — list or find local rides.
+- 🌐 **Remittance agents** — compare providers in a pop-up dialog with clickable links straight to each provider.
+- 💬 **Per-listing chat & inbox** — message the poster directly; unread messages are tracked.
+- 🔢 **Hero dashboard** — live listing counts per category and unread-message count, all clickable.
+- 🔐 **Accounts** — bcrypt-hashed passwords, welcome email, and a friendly **forgot-password** flow by email.
+- 🛠️ **Admin panel** — stats, activity feed, users, listings, backup & restore, manual reset-link button.
+- 🌙 **Dark / light mode** and a **mobile-first layout**.
 
 ## Screenshots
+
+> Screenshots use demo data.
+
+**Rooms to let** — address stays locked for visitors, photos are labelled per space.
+
+| Light | Dark |
+|---|---|
+| ![Rooms light](docs/screenshots/rooms-light.png) | ![Rooms dark](docs/screenshots/rooms-dark.png) |
+
+**Posting a room** — amenities and labelled photo slots.
+
+| Post form | On a phone |
+|---|---|
+| ![Room form](docs/screenshots/room-form.png) | <img src="docs/screenshots/rooms-phone.png" width="300" alt="Rooms on phone"> |
+
+**Items & gadgets**
 
 | Light | Dark |
 |---|---|
@@ -32,62 +54,78 @@ GlobalRate is a full-stack web app that helps people move, exchange and trade mo
 
 ## Tech stack
 
-| Layer | Tech |
-|---|---|
-| Server | Node.js, Express |
-| Frontend | One self-contained HTML/CSS/JS page (no build step) |
-| Data | JSON-file database (`data/db.json`) + photo files (`data/uploads`) |
-| Auth | bcryptjs password hashing, bearer session tokens |
-| Email | Nodemailer + Zoho Mail SMTP |
-| Rates | open.er-api.com (no API key) |
+- **Backend:** Node.js + Express (single `server.js`)
+- **Frontend:** vanilla HTML/CSS/JS (`public/index.html`, `public/admin.html`) — no build step
+- **Storage:** JSON file database + uploads folder (PostgreSQL planned)
+- **Auth & email:** bcryptjs, bearer-token sessions, Nodemailer (SMTP)
+- **Hosting:** Render
 
-## Run it locally
+## Run locally
 
 ```bash
-git clone https://github.com/<your-username>/globalrate.git
+git clone https://github.com/mightysamsonakor-glitch/globalrate.git
 cd globalrate
 npm install
-cp .env.example .env      # Windows: copy .env.example .env  — then fill it in
+cp .env.example .env   # then edit values (optional for basic use)
 npm start
 ```
 
-Open <http://localhost:3000>.
+Open http://localhost:3000.
 
-## Configuration (`.env` / host environment variables)
+## Configuration
+
+Set these in `.env` locally, or as environment variables on your host.
 
 | Variable | Purpose |
 |---|---|
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | Welcome-email sender (optional) |
-| `ADMIN_EMAILS` | Comma-separated emails allowed into `/admin.html` |
-| `ADMIN_KEY` | Secret passphrase typed once to unlock admin powers |
-| `PORT` | Set automatically by most hosts |
-| `DB_PATH`, `UPLOADS_DIR` | Where data is stored — point both at a persistent disk in production |
+| `PORT` | Server port (default 3000) |
+| `BASE_URL` | Public site URL, used in emails and reset links (e.g. `https://www.globalrate.space`) |
+| `DB_PATH` | Database file location (e.g. `/var/data/db.json` on a persistent disk) |
+| `UPLOADS_DIR` | Photo storage folder (e.g. `/var/data/uploads`) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | Outgoing email (welcome + password reset) |
+| `ADMIN_EMAILS` | Comma-separated emails allowed into the admin panel |
+| `ADMIN_KEY` | Secret key required for admin access |
 
-## Owner admin panel
+## Password reset
 
-1. Create an account on the site using an email listed in `ADMIN_EMAILS`.
-2. Open `/admin.html` (or the **🛡️ Admin** button) and enter your `ADMIN_KEY`.
-3. You get: overview stats and 14-day chart, a live activity log (sign-ups, logins, failed logins, posts, removals), user management, listing moderation (also available as **Remove (admin)** buttons on the public page), and **full backup / restore** (database + photos).
+Users click **Forgot password?**, receive an email with a one-hour link, and set a new password. Tokens are stored hashed, requests are rate-limited, and admins can generate a reset link manually from the admin panel if email is unavailable.
 
-Security notes: admin routes need *both* an allowed email *and* the secret key, the key check is rate-limited, passwords are hashed, and `.env` is git-ignored.
+## Admin panel
 
-## Deploying (Render example)
+Visit `/admin.html` while signed in with an email listed in `ADMIN_EMAILS`, then enter `ADMIN_KEY`. Repeated wrong keys trigger a temporary lockout. From there you can view stats and activity, manage users and listings, and download or restore a full backup.
 
-1. Push this repo to GitHub.
-2. Render → **New → Web Service** → pick the repo. Build: `npm install` · Start: `npm start`.
-3. Add the environment variables above.
-4. Add your custom domain under **Settings → Custom Domains** and create the DNS records Render shows.
-5. **Free plan:** disk is wiped on restart — download a backup from the admin panel regularly.
-   **Paid plan:** attach a disk (e.g. mount `/var/data`) and set `DB_PATH=/var/data/db.json`, `UPLOADS_DIR=/var/data/uploads`.
+## Deploying on Render
+
+1. Create a **Web Service** from this repo (build `npm install`, start `npm start`).
+2. Add the environment variables above.
+3. **Free plan:** the disk is wiped on every restart and SMTP is blocked — fine for testing only.
+4. **Paid plan (recommended):** add a **Disk** mounted at `/var/data`, then set `DB_PATH=/var/data/db.json` and `UPLOADS_DIR=/var/data/uploads`. Data now survives restarts and deploys, and email works.
+5. Confirm the logs show `Database file: /var/data/db.json`.
+
+## Project structure
+
+```
+server.js            Express API, auth, email, admin routes
+public/index.html    Main single-page app
+public/admin.html    Admin panel
+docs/screenshots/    README images
+.env.example         Configuration template
+```
 
 ## Roadmap
 
-- [ ] Move from the JSON file to PostgreSQL
-- [ ] Email verification & password reset
-- [ ] Lithuanian / English language switch
-- [ ] Favourites and "report listing"
-- [ ] Rate alerts by email
+- [ ] PostgreSQL storage
+- [ ] Language switch (English / Lithuanian)
+- [ ] Favourites & report listing
+- [ ] Exchange-rate alerts
+- [ ] Featured listings
+- [ ] "Looking for a room" board
+
+## Contact
+
+Built by **MightSmith** (Mighty Samson) — 3rd-year student at VilniusTech.
+Questions or feedback: **admin@globalrate.space**
 
 ## License
 
-Personal project © MightSmith. All rights reserved unless a license file says otherwise.
+Released under the MIT License.
