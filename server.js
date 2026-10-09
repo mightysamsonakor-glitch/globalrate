@@ -54,13 +54,28 @@ if (mailer) {
 
 async function sendWelcomeEmail(user) {
   if (!mailer) return;
+  const safeName = String(user.name).replace(/[<>&]/g, '');
+  const site = process.env.BASE_URL ? process.env.BASE_URL.replace(/\/+$/, '') : 'https://www.globalrate.space';
   try {
     await mailer.sendMail({
-      from: `"Admin" <${mailFromAddress}>`,
+      from: `"GlobalRate" <${mailFromAddress}>`,
       to: user.email,
       subject: 'Welcome to GlobalRate!',
-      text: `Hi ${user.name},\n\nYour GlobalRate account is ready. You can now post and manage listings in the Local Currency Marketplace and the Vehicle & Bike Rentals board.\n\n— The GlobalRate team`,
-      html: `<p>Hi ${user.name},</p><p>Your GlobalRate account is ready. You can now post and manage listings in the Local Currency Marketplace and the Vehicle & Bike Rentals board.</p><p>— The GlobalRate team</p>`
+      text: `Hi ${user.name},\n\nYour GlobalRate account is ready. You can now:\n\n- Check live currency rates and compare remittance agents\n- Post and manage listings in the Local Currency Marketplace\n- Offer or find vehicle, taxi and e-bike rentals\n- Sell items and gadgets with photos\n- List a room or flat-share, or find one near you\n- Chat directly with other users about any listing\n\nGet started: ${site}\n\nForgot your password one day? Use the "Forgot your password?" link on the sign-in box.\n\n— The GlobalRate team`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#1e293b">
+        <h2 style="color:#6d28d9">Welcome to GlobalRate, ${safeName}! 🎉</h2>
+        <p>Your account is ready. You can now:</p>
+        <ul style="line-height:1.8">
+          <li>💱 Check live currency rates and compare remittance agents</li>
+          <li>🏙️ Post and manage listings in the Local Currency Marketplace</li>
+          <li>🚗 Offer or find vehicle, taxi and e-bike rentals</li>
+          <li>📦 Sell items and gadgets with photos</li>
+          <li>🏠 List a room or flat-share, or find one near you</li>
+          <li>💬 Chat directly with other users about any listing</li>
+        </ul>
+        <p style="margin:24px 0"><a href="${site}" style="background:#7c3aed;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Open GlobalRate</a></p>
+        <p style="font-size:13px;color:#64748b">Forgot your password one day? Use the "Forgot your password?" link on the sign-in box.</p>
+        <p>— The GlobalRate team</p></div>`
     });
     console.log(`Welcome email sent to ${user.email}`);
   } catch (err) {
