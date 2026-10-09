@@ -389,7 +389,12 @@ app.post('/api/logout', authMiddleware, (req, res) => {
 });
 
 // --- Local currency marketplace (posting requires login; browsing is open) ---
-app.get('/api/marketplace', (req, res) => res.json(db.marketplace));
+// Hide lister phone numbers until the viewer is signed in
+const maskPhones = (list, req) => {
+  if (sessions[tokenOf(req)]) return list;
+  return list.map(x => ({ ...x, phone: '', phoneHidden: !!x.phone }));
+};
+app.get('/api/marketplace', (req, res) => res.json(maskPhones(db.marketplace, req)));
 
 app.post('/api/marketplace', authMiddleware, (req, res) => {
   const { haveCurrency, haveAmount, wantCurrency, location, notes } = req.body;
@@ -439,7 +444,7 @@ app.delete('/api/marketplace/:id', authMiddleware, (req, res) => {
 });
 
 // --- Vehicle & bike rentals marketplace (same pattern as currency marketplace) ---
-app.get('/api/rentals', (req, res) => res.json(db.rentals));
+app.get('/api/rentals', (req, res) => res.json(maskPhones(db.rentals, req)));
 
 app.post('/api/rentals', authMiddleware, (req, res) => {
   const { vehicleType, description, pricePerDay, location, notes } = req.body;
@@ -522,7 +527,7 @@ function deletePhotoFiles(urls) {
   });
 }
 
-app.get('/api/items', (req, res) => res.json(db.items));
+app.get('/api/items', (req, res) => res.json(maskPhones(db.items, req)));
 
 app.post('/api/items', authMiddleware, (req, res) => {
   const { title, category, price, condition, location, description, photos } = req.body;
@@ -585,7 +590,7 @@ const ROOM_BILLS = ['Not included', 'Included', 'Partly included'];
 
 function roomForViewer(room, signedIn) {
   const out = { ...room };
-  if (!signedIn) { out.address = ''; out.addressHidden = !!room.address; }
+  if (!signedIn) { out.address = ''; out.addressHidden = !!room.address; out.phone = ''; out.phoneHidden = !!room.phone; }
   return out;
 }
 
