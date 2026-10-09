@@ -709,6 +709,31 @@
     html[data-theme="dark"] .room-chips span.rl { background: #064e3b; color: #a7f3d0; }
     html[data-theme="dark"] .room-thumbs figcaption { color: #94a3b8; }
     html[data-theme="dark"] #roomWho, html[data-theme="dark"] #roomSort { background:#0f172a; color:#f1f5f9; border-color:#475569 !important; }
+      /* ---- v4: phone layout fixes (nothing may be wider than the screen) ---- */
+    html { overflow-x: hidden; max-width: 100%; }
+    img, video, canvas { max-width: 100%; }
+    input, select, textarea { max-width: 100%; }
+    .hero-nav-actions { min-width: 0; }
+    .hero-topbar { width: 100%; }
+    .hero-wrap > * { min-width: 0; }
+    .hero-card { max-width: 100%; }
+    .explore-input-row input { min-width: 0; }
+    dialog { max-width: calc(100vw - 24px); }
+    .form-row input, .form-row select, .form-box textarea { min-width: 0; }
+    .form-row > div > input, .form-row > div > select { width: 100%; }
+    @media (max-width: 600px) {
+      body { padding-left: 14px; padding-right: 14px; }
+      .form-box { padding: 18px 14px; }
+      .form-row > * { flex: 1 1 100% !important; min-width: 0 !important; }
+      .filter-row > * { flex: 1 1 100% !important; min-width: 0 !important; }
+      .filter-row .country-picker-btn { width: 100%; }
+      .explore-input-row { flex-wrap: wrap; }
+      .explore-input-row input { flex: 1 1 100%; }
+      .explore-go-btn { width: 100%; }
+      .dialog-inner { padding: 18px 14px; }
+      .section-title { font-size: 20px; }
+      .hero-stats { gap: 16px; flex-wrap: wrap; }
+    }
   </style>
 </head>
 <body>
