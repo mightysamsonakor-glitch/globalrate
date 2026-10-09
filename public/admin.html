@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>GlobalRate Admin</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    (function(){ try { var t = localStorage.getItem('gr-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); document.documentElement.setAttribute('data-theme', t); } catch(e){ document.documentElement.setAttribute('data-theme','light'); } })();
+  </script>
+  <style>
+    :root { --bg:#f1f5f9; --card:#fff; --text:#0f172a; --muted:#64748b; --line:#e2e8f0; --accent:#7c3aed; --good:#16a34a; --bad:#dc2626; --warn:#d97706; }
+    html[data-theme="dark"] { --bg:#0b1020; --card:#1e293b; --text:#e5e7eb; --muted:#94a3b8; --line:#334155; --accent:#a78bfa; --good:#4ade80; --bad:#f87171; --warn:#fbbf24; color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); }
+    header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 20px; background:var(--card); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; }
+    header h1 { font-family:'Poppins',sans-serif; font-size:18px; margin:0; display:flex; align-items:center; gap:10px; }
+    header img { width:30px; height:30px; }
+    header a, .btn { font-family:'Poppins',sans-serif; font-size:12px; font-weight:700; padding:8px 14px; border-radius:18px; border:1.5px solid var(--line); background:var(--card); color:var(--text); text-decoration:none; cursor:pointer; }
+    .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .btn.danger { color:var(--bad); border-color:var(--bad); }
+    .btn:hover, header a:hover { opacity:.85; }
+    main { max-width:1180px; margin:0 auto; padding:20px; }
+    .gate { max-width:420px; margin:70px auto; background:var(--card); border:1px solid var(--line); border-radius:18px; padding:28px; text-align:center; }
+    .gate input { width:100%; padding:12px; border:2px solid var(--line); border-radius:10px; background:var(--bg); color:var(--text); font-size:15px; margin:12px 0; }
+    .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
+    .tab { padding:9px 16px; border-radius:20px; border:1.5px solid var(--line); background:var(--card); color:var(--text); font-family:'Poppins',sans-serif; font-weight:700; font-size:13px; cursor:pointer; }
+    .tab.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:18px; }
+    .stat { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; }
+    .stat b { display:block; font-family:'Poppins',sans-serif; font-size:28px; }
+    .stat span { font-size:12px; color:var(--muted); }
+    .panel { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:18px; overflow-x:auto; }
+    .panel h2 { font-family:'Poppins',sans-serif; font-size:15px; margin:0 0 12px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+    .pill { display:inline-block; padding:2px 9px; border-radius:12px; font-size:11px; font-weight:700; background:var(--bg); border:1px solid var(--line); }
+    .pill.good { color:var(--good); } .pill.bad { color:var(--bad); } .pill.warn { color:var(--warn); }
+    .bars { display:flex; align-items:flex-end; gap:6px; height:110px; }
+    .bar { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; font-size:10px; color:var(--muted); height:100%; }
+    .bar i { width:100%; background:var(--accent); border-radius:5px 5px 0 0; min-height:2px; display:block; }
+    .bar i.s { background:var(--good); }
+    .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+    .toolbar input, .toolbar select { padding:9px 12px; border:2px solid var(--line); border-radius:10px; background:var(--bg); color:var(--text); font-size:13px; }
+    .thumb { width:44px; height:44px; object-fit:cover; border-radius:8px; margin-right:4px; }
+    .note { font-size:12px; color:var(--muted); line-height:1.5; }
+    .hidden { display:none !important; }
+    #toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--text); color:var(--bg); padding:10px 18px; border-radius:10px; font-size:13px; display:none; z-index:20; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><img src="favicon.svg" alt=""> GlobalRate Admin</h1>
+    <div style="display:flex;gap:8px;"><a href="/">← Back to site</a><a href="#" onclick="lockOut();return false;">Lock</a></div>
+  </header>
+
+  <main>
+    <div id="gate" class="gate hidden">
+      <div style="font-size:38px;">🛡️</div>
+      <h2 style="font-family:'Poppins',sans-serif;margin:6px 0;">Owner access</h2>
+      <p class="note" id="gateText"></p>
+      <input id="keyInput" type="password" placeholder="Admin key" onkeydown="if(event.key==='Enter')unlock()">
+      <button class="btn primary" style="width:100%;padding:12px;" onclick="unlock()">Unlock admin panel</button>
+      <p id="gateMsg" style="color:var(--bad);font-size:13px;min-height:18px;"></p>
+    </div>
+
+    <div id="app" class="hidden">
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-t="overview">📊 Overview</button>
+        <button class="tab" data-t="activity">🕒 Activity</button>
+        <button class="tab" data-t="users">👥 Users</button>
+        <button class="tab" data-t="listings">🏷️ Listings</button>
+        <button class="tab" data-t="backup">💾 Backup</button>
+      </div>
+
+      <section id="t-overview"></section>
+      <section id="t-activity" class="hidden"></section>
+      <section id="t-users" class="hidden"></section>
+      <section id="t-listings" class="hidden"></section>
+      <section id="t-backup" class="hidden">
+        <div class="panel">
+          <h2>💾 Backup &amp; restore</h2>
+          <p class="note">Everything — accounts, listings, chats and photos — lives on the server. On a free host it is wiped when the server restarts, so download a backup regularly (and before every update). If data ever disappears, restore it here in one click. After you upgrade to a paid host with a disk this is still your safety net.</p>
+          <p><button class="btn primary" onclick="downloadBackup()">⬇️ Download full backup</button></p>
+          <hr style="border:none;border-top:1px solid var(--line);margin:16px 0;">
+          <p class="note"><b>Restore from a backup file.</b> This replaces everything currently on the server.</p>
+          <input type="file" id="restoreFile" accept="application/json,.json">
+          <p><button class="btn danger" onclick="restoreBackup()">⬆️ Restore from file</button></p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <div id="toast"></div>
+
+  <script>
+    const token = (() => { try { return localStorage.getItem('authToken'); } catch (e) { return null; } })();
+    const H = (json) => ({ ...(json ? { 'Content-Type': 'application/json' } : {}), Authorization: 'Bearer ' + token });
+    const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const ago = iso => { const s = (Date.now() - new Date(iso)) / 1000; if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s/60) + ' min ago'; if (s < 86400) return Math.floor(s/3600) + ' h ago'; return Math.floor(s/86400) + ' d ago'; };
+    function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 2600); }
+    const $ = id => document.getElementById(id);
+
+    async function api(path, opts = {}) {
+      const res = await fetch(path, { ...opts, headers: { ...H(!!opts.body), ...(opts.headers || {}) } });
+      if (res.status === 403 || res.status === 401) { const e = new Error('locked'); e.locked = true; throw e; }
+      if (!res.ok && res.status !== 204) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Request failed'); }
+      return res.status === 204 ? null : res.json();
+    }
+
+    async function start() {
+      if (!token) { showGate('Please log in on the main site with your admin account first, then come back here.'); return; }
+      try { await api('/api/admin/overview'); showApp(); }
+      catch (e) {
+        if (!e.locked) return showGate(e.message);
+        const me = await fetch('/api/me', { headers: H() });
+        if (!me.ok) return showGate('Your login expired. Log in on the main site, then come back here.');
+        const u = await me.json();
+        if (!u.canAdmin) return showGate('This account (' + u.email + ') is not an admin. The server owner must add your email to ADMIN_EMAILS.');
+        showGate('Signed in as ' + u.email + '. Enter your admin key to continue.', true);
+      }
+    }
+    function showGate(text, withInput) {
+      $('gate').classList.remove('hidden'); $('app').classList.add('hidden');
+      $('gateText').textContent = text;
+      $('keyInput').style.display = withInput ? 'block' : 'none';
+      document.querySelector('#gate .btn.primary').style.display = withInput ? 'block' : 'none';
+    }
+    async function unlock() {
+      $('gateMsg').textContent = '';
+      try { await api('/api/admin/unlock', { method: 'POST', body: JSON.stringify({ key: $('keyInput').value }) }); $('keyInput').value = ''; showApp(); }
+      catch (e) { $('gateMsg').textContent = e.locked ? 'Not allowed for this account.' : e.message; }
+    }
+    function lockOut() { fetch('/api/logout', { method: 'POST', headers: H() }).finally(() => { try { localStorage.removeItem('authToken'); } catch (e) {} location.href = '/'; }); }
+    function showApp() { $('gate').classList.add('hidden'); $('app').classList.remove('hidden'); loadTab('overview'); }
+
+    document.getElementById('tabs').addEventListener('click', e => {
+      const b = e.target.closest('.tab'); if (!b) return;
+      document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === b));
+      ['overview','activity','users','listings','backup'].forEach(t => $('t-' + t).classList.toggle('hidden', t !== b.dataset.t));
+      loadTab(b.dataset.t);
+    });
+    function loadTab(t) { ({ overview: loadOverview, activity: loadOverview, users: loadUsers, listings: loadListings, backup: () => {} })[t](); }
+
+    const EVENT_LABEL = {
+      register: ['🆕 New account', 'good'], login: ['🔑 Login', ''], login_failed: ['⚠️ Failed login', 'bad'],
+      marketplace_posted: ['💱 Currency listing', 'good'], rentals_posted: ['🚗 Rental listing', 'good'], items_posted: ['📦 Item listed', 'good'],
+      marketplace_deleted: ['🗑️ Currency listing removed', 'warn'], rentals_deleted: ['🗑️ Rental removed', 'warn'], items_deleted: ['🗑️ Item removed', 'warn'],
+      message: ['💬 Chat message', ''], admin_unlocked: ['🛡️ Admin unlocked', ''], admin_unlock_failed: ['🚨 Admin key failed', 'bad'],
+      user_deleted_by_admin: ['🛡️ User deleted', 'warn'], listing_removed_by_admin: ['🛡️ Listing removed', 'warn'],
+      backup_downloaded: ['💾 Backup downloaded', ''], backup_restored: ['♻️ Backup restored', 'warn']
+    };
+
+    async function loadOverview() {
+      const d = await api('/api/admin/overview');
+      const t = d.totals, s = d.server;
+      const maxV = Math.max(1, ...d.days.map(x => x.visits)), maxS = Math.max(1, ...d.days.map(x => x.signups));
+      $('t-overview').innerHTML = `
+        <div class="grid">
+          <div class="stat"><b>${t.users}</b><span>Registered users</span></div>
+          <div class="stat"><b>${t.currencyListings + t.rentalListings + t.itemListings}</b><span>Total listings</span></div>
+          <div class="stat"><b>${t.messages}</b><span>Chat messages</span></div>
+          <div class="stat"><b>${t.activeSessions}</b><span>Logged-in sessions</span></div>
+          <div class="stat"><b>${d.days.reduce((a, x) => a + x.visits, 0)}</b><span>Page visits (14 days)</span></div>
+          <div class="stat"><b>${t.photos}</b><span>Photos stored</span></div>
+        </div>
+        <div class="panel"><h2>Listings</h2>
+          <span class="pill">💱 Currency: ${t.currencyListings}</span> <span class="pill">🚗 Rentals: ${t.rentalListings} (${d.status.rentalsAvailable} available)</span>
+          <span class="pill">📦 Items: ${t.itemListings} (${d.status.itemsAvailable} available, ${d.status.itemsSold} sold)</span>
+        </div>
+        <div class="panel"><h2>Last 14 days — visits (purple) &amp; new accounts (green)</h2>
+          <div class="bars">${d.days.map(x => `<div class="bar" title="${x.day}: ${x.visits} visits, ${x.signups} sign-ups"><i style="height:${x.visits / maxV * 70}%"></i><i class="s" style="height:${x.signups / maxS * 25}%"></i>${x.day.slice(8)}</div>`).join('')}</div>
+        </div>
+        <div class="panel"><h2>Server health</h2>
+          <table>
+            <tr><td>Uptime</td><td>${Math.floor(s.uptimeMinutes / 60)} h ${s.uptimeMinutes % 60} min (since ${new Date(s.startedAt).toLocaleString()})</td></tr>
+            <tr><td>Welcome emails</td><td>${s.emailConfigured ? '<span class="pill good">configured</span>' : '<span class="pill bad">not configured</span>'}</td></tr>
+            <tr><td>Database file</td><td>${esc(s.databasePath)} (${s.databaseKB} KB)</td></tr>
+            <tr><td>Data safety</td><td>${s.persistentStorageHint ? '<span class="pill good">custom storage path set</span>' : '<span class="pill warn">default path — data resets on free hosts</span>'}</td></tr>
+            <tr><td>Node</td><td>${esc(s.node)}</td></tr>
+          </table>
+        </div>
+        <div class="panel"><h2>Latest activity</h2>${activityTable(d.activity.slice(0, 12))}</div>`;
+      $('t-activity').innerHTML = `<div class="panel"><h2>Activity log (last ${d.activity.length} events)</h2>${activityTable(d.activity)}</div>`;
+    }
+    function activityTable(list) {
+      if (!list.length) return '<p class="note">Nothing yet.</p>';
+      return '<table><tr><th>When</th><th>What</th><th>Who</th><th>Details</th></tr>' + list.map(a => {
+        const [label, cls] = EVENT_LABEL[a.type] || [a.type, ''];
+        return `<tr><td title="${esc(a.at)}">${ago(a.at)}</td><td><span class="pill ${cls}">${label}</span></td><td>${esc(a.userName || '—')}</td><td>${esc(a.detail)}</td></tr>`;
+      }).join('') + '</table>';
+    }
+
+    let usersCache = [];
+    async function loadUsers() {
+      usersCache = await api('/api/admin/users');
+      renderUsers();
+    }
+    function renderUsers() {
+      const q = ($('userQ') ? $('userQ').value : '').toLowerCase();
+      const rows = usersCache.filter(u => !q || (u.name + u.email + u.phone).toLowerCase().includes(q)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      $('t-users').innerHTML = `<div class="panel"><h2>Users (${usersCache.length})</h2>
+        <div class="toolbar"><input id="userQ" placeholder="Search name, email, phone…" value="${esc(q)}" oninput="renderUsers()"></div>
+        <table><tr><th>Name</th><th>Email</th><th>Phone</th><th>Joined</th><th>Listings</th><th></th></tr>
+        ${rows.map(u => `<tr><td>${esc(u.name)} ${u.isAdmin ? '<span class="pill good">admin</span>' : ''}</td><td>${esc(u.email)}</td><td>${esc(u.phone)}</td><td>${ago(u.createdAt)}</td><td>${u.listings}</td>
+          <td>${u.isAdmin ? '' : `<button class="btn danger" onclick="delUser('${u.id}','${esc(u.email)}')">Delete</button>`}</td></tr>`).join('')}
+        </table></div>`;
+      const i = $('userQ'); if (q) { i.focus(); i.setSelectionRange(q.length, q.length); }
+    }
+    async function delUser(id, email) {
+      if (!confirm('Delete the account ' + email + ' together with all their listings, photos and chats? This cannot be undone.')) return;
+      try { await api('/api/admin/users/' + id, { method: 'DELETE' }); toast('User deleted'); loadUsers(); } catch (e) { toast(e.message); }
+    }
+
+    let listingsCache = [];
+    async function loadListings() { listingsCache = await api('/api/admin/listings'); renderListings(); }
+    function renderListings() {
+      const q = ($('listQ') ? $('listQ').value : '').toLowerCase();
+      const ty = $('listT') ? $('listT').value : '';
+      const rows = listingsCache.filter(l => (!ty || l.type === ty) && (!q || JSON.stringify(l).toLowerCase().includes(q)));
+      const title = l => l.type === 'currency' ? `💱 ${l.haveAmount} ${l.haveCurrency} → ${l.wantCurrency}` : l.type === 'rental' ? `🚗 ${esc(l.vehicleType)}: ${esc(l.description)}` : `📦 ${esc(l.title)} — €${l.price}`;
+      $('t-listings').innerHTML = `<div class="panel"><h2>All listings (${listingsCache.length})</h2>
+        <div class="toolbar"><input id="listQ" placeholder="Search…" value="${esc(q)}" oninput="renderListings()">
+        <select id="listT" onchange="renderListings()"><option value="">All types</option><option value="currency" ${ty==='currency'?'selected':''}>Currency</option><option value="rental" ${ty==='rental'?'selected':''}>Rentals</option><option value="item" ${ty==='item'?'selected':''}>Items</option></select></div>
+        <table><tr><th>Listing</th><th>Posted by</th><th>Status</th><th>When</th><th></th></tr>
+        ${rows.map(l => `<tr><td>${(l.photos || []).slice(0, 2).map(p => `<img class="thumb" src="${esc(p)}" alt="">`).join('')}${title(l)}<div class="note">${esc(l.location || '')}</div></td>
+          <td>${esc(l.posterName)}<div class="note">${esc(l.phone)}</div></td><td><span class="pill">${esc(l.status)}</span></td><td>${ago(l.postedAt)}</td>
+          <td><button class="btn danger" onclick="delListing('${l.type}','${l.id}')">Remove</button></td></tr>`).join('')}
+        </table></div>`;
+      const i = $('listQ'); if (q) { i.focus(); i.setSelectionRange(q.length, q.length); }
+    }
+    async function delListing(type, id) {
+      if (!confirm('Remove this listing (and its photos)? This cannot be undone.')) return;
+      try { await api(`/api/admin/listings/${type}/${id}`, { method: 'DELETE' }); toast('Listing removed'); loadListings(); } catch (e) { toast(e.message); }
+    }
+
+    async function downloadBackup() {
+      try {
+        const res = await fetch('/api/admin/export', { headers: H() });
+        if (!res.ok) throw new Error('Backup failed');
+        const blob = await res.blob();
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = 'globalrate-backup-' + new Date().toISOString().slice(0, 10) + '.json'; a.click();
+        toast('Backup downloaded — keep it somewhere safe');
+      } catch (e) { toast(e.message); }
+    }
+    async function restoreBackup() {
+      const f = $('restoreFile').files[0];
+      if (!f) return toast('Choose a backup file first');
+      if (!confirm('This REPLACES all current data with the backup. Continue?')) return;
+      try {
+        const body = await f.text();
+        const res = await fetch('/api/admin/import', { method: 'POST', headers: H(true), body });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || 'Restore failed');
+        toast(`Restored ${d.users} users and ${d.photos} photos`);
+        setTimeout(() => location.reload(), 1200);
+      } catch (e) { toast(e.message); }
+    }
+    start();
+  </script>
+</body>
+</html>

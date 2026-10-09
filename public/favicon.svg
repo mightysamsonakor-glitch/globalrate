@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4c1d95"/><stop offset="0.6" stop-color="#2563eb"/><stop offset="1" stop-color="#0891b2"/>
+    </linearGradient>
+    <linearGradient id="up" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#34d399"/><stop offset="1" stop-color="#bef264"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#bg)"/>
+  <!-- bold G = globe ring -->
+  <path d="M47 18.5A18 18 0 1 0 50 33" fill="none" stroke="#fff" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- rising rate arrow inside the G -->
+  <path d="M21 41L28.5 33.5L33.5 38.5L46 25.5" fill="none" stroke="url(#up)" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M38.5 25H46.5V33" fill="none" stroke="url(#up)" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

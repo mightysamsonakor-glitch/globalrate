@@ -1,0 +1,2249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="theme-color" content="#7c3aed">
+  <title>GlobalRate – Live Currency Rates, Remittance &amp; Marketplace</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    (function(){ try {
+      var t = localStorage.getItem('gr-theme');
+      if (!t) t = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch(e) { document.documentElement.setAttribute('data-theme','light'); } })();
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    html { position: relative; scroll-behavior: smooth; scroll-padding-top: 84px; }
+    body {
+      font-family: 'Inter', sans-serif;
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 76px 20px 60px;
+      background:
+        radial-gradient(circle at 15% 200px, rgba(124,58,237,0.06), transparent 400px),
+        radial-gradient(circle at 85% 800px, rgba(5,150,105,0.07), transparent 450px),
+        radial-gradient(circle at 20% 1400px, rgba(37,99,235,0.06), transparent 400px),
+        radial-gradient(circle at 80% 2000px, rgba(219,39,119,0.05), transparent 400px),
+        linear-gradient(180deg, #ecfeff 0%, #f9fafb 400px);
+      background-attachment: fixed, fixed, fixed, fixed, scroll;
+      color: #111;
+      position: relative;
+      overflow-x: hidden;
+    }
+    body::before, body::after {
+      content: ''; position: fixed; border-radius: 50%; filter: blur(60px);
+      opacity: 0.25; z-index: -1; animation: float 12s ease-in-out infinite;
+    }
+    body::before { width: 320px; height: 320px; background: #7c3aed; top: -80px; left: -80px; }
+    body::after { width: 280px; height: 280px; background: #059669; bottom: -60px; right: -60px; animation-delay: 3s; }
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(20px, -20px); }
+    }
+    h1, h2, h3, .header h1, .section-title, .hero-rate, .provider-name, .converter h3, .form-box h3 {
+      font-family: 'Poppins', sans-serif;
+    }
+    .header {
+      background: linear-gradient(120deg, #e0f2fe 0%, #fef3e2 55%, #fde8e8 100%);
+      margin: 0 -20px 20px;
+      padding: 22px 20px 40px;
+      border-radius: 0 0 32px 32px;
+      color: #111;
+      position: relative;
+      overflow: hidden;
+    }
+    /* Fixed top navigation: always visible while scrolling */
+    .site-nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      background: rgba(255,255,255,0.9);
+      -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(124,58,237,0.15);
+      box-shadow: 0 4px 18px rgba(15,23,42,0.08);
+    }
+    .hero-topbar {
+      max-width: 1320px; margin: 0 auto; padding: 10px 20px;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    }
+    .hero-logo {
+      display: flex; align-items: center; gap: 8px; text-decoration: none; cursor: pointer;
+      font-family: 'Poppins', sans-serif; font-weight: 900; flex-shrink: 0;
+    }
+    .logo-emoji { font-size: 26px; }
+    .logo-img { width: 34px; height: 34px; display: block; }
+    .logo-text {
+      font-size: 24px;
+      background: linear-gradient(90deg, #7c3aed, #2563eb, #059669);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero-logo-symbols { font-size: 14px; font-weight: 700; color: #db2777; letter-spacing: 3px; }
+    .hero-nav-actions { display: flex; gap: 8px; align-items: center; }
+    .hero-nav-btn {
+      background: white; border: 1.5px solid #ddd6fe; border-radius: 20px; padding: 9px 16px;
+      font-size: 12px; font-weight: 700; cursor: pointer; color: #4c1d95; text-decoration: none;
+      font-family: 'Poppins', sans-serif; display: inline-block; white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(124,58,237,0.10);
+      transition: transform 0.15s, box-shadow 0.15s, background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .hero-nav-btn:hover {
+      background: #7c3aed; color: white; border-color: #7c3aed;
+      transform: translateY(-2px); box-shadow: 0 6px 14px rgba(124,58,237,0.30);
+    }
+    .hero-nav-btn:active { transform: translateY(0); }
+    .hero-nav-btn:focus-visible { outline: 3px solid rgba(124,58,237,0.45); outline-offset: 2px; }
+    .account-btn { background: #1e293b; color: white; border-color: #1e293b; box-shadow: 0 2px 6px rgba(15,23,42,0.25); }
+    .account-btn:hover { background: #7c3aed; border-color: #7c3aed; color: white; }
+    @media (max-width: 800px) {
+      .hero-topbar { padding: 8px 12px; }
+      .logo-text { font-size: 18px; }
+      .logo-emoji { font-size: 20px; }
+      .logo-img { width: 28px; height: 28px; }
+      .hero-logo-symbols { display: none; }
+      .hero-nav-actions { overflow-x: auto; padding: 6px 2px; scrollbar-width: none; }
+      .hero-nav-actions::-webkit-scrollbar { display: none; }
+    }
+
+    .hero-wrap { display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px; align-items: center; }
+    .hero-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #059669; display: flex; align-items: center; margin-bottom: 10px; }
+    .hero-headline { font-size: 30px; font-weight: 900; line-height: 1.15; margin: 0 0 12px; font-family: 'Poppins', sans-serif; color: #0f172a; }
+    .hero-sub { font-size: 13px; color: #555; margin: 0 0 22px; line-height: 1.5; }
+    .hero-stats { display: flex; gap: 24px; }
+    .hero-stat-num { font-size: 22px; font-weight: 900; color: #0f172a; font-family: 'Poppins', sans-serif; }
+    .hero-stat-label { font-size: 11px; color: #666; }
+
+    .hero-card {
+      background: white; border-radius: 20px; padding: 22px;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.12);
+    }
+    .hero-card-label { font-size: 12px; font-weight: 700; color: #555; margin: 0 0 8px; }
+    .hero-card-select {
+      width: 100%; padding: 12px 14px; border: 2px solid #e5e7eb; border-radius: 10px;
+      font-size: 14px; font-weight: 600; font-family: 'Poppins', sans-serif; background: #f9fafb;
+    }
+
+    .live-dot {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      background: #4ade80; margin-right: 6px; animation: pulse 1.4s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.6); }
+      70% { box-shadow: 0 0 0 8px rgba(74,222,128,0); }
+      100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+    }
+    @media (max-width: 700px) {
+      .hero-wrap { grid-template-columns: 1fr; }
+      .hero-headline { font-size: 24px; }
+    }
+
+    .base-picker {
+      background: white; border-radius: 16px; padding: 16px 20px; margin-top: -35px; margin-bottom: 24px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    .base-picker label { font-size: 13px; font-weight: 700; color: #555; }
+    .base-picker select {
+      padding: 10px 14px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px;
+      font-family: 'Poppins', sans-serif; font-weight: 600;
+    }
+
+    .widget-row {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+      margin-top: -35px; margin-bottom: 26px;
+    }
+    .widget-tile {
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(10px);
+      border-radius: 18px; padding: 18px 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      border: 1px solid rgba(255,255,255,0.6);
+      display: flex; flex-direction: column; gap: 4px;
+      font-family: 'Poppins', sans-serif; text-align: left;
+      cursor: default;
+    }
+    .widget-icon { font-size: 20px; }
+    .widget-label { font-size: 12px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+    .widget-sub { font-size: 11px; color: #999; }
+    .search-tile { cursor: pointer; border: none; transition: transform 0.15s; }
+    .search-tile:hover { transform: translateY(-2px); background: rgba(255,255,255,0.95); }
+    .base-select-inline {
+      margin-top: 4px; padding: 8px 10px; border: 2px solid #e5e7eb; border-radius: 8px;
+      font-size: 14px; font-weight: 700; font-family: 'Poppins', sans-serif; background: white;
+    }
+    .trending-list { display: flex; flex-direction: column; gap: 3px; margin-top: 2px; }
+    .trend-item { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: #16a34a; }
+    .trend-item span.code { color: #555; font-weight: 600; }
+
+    #currencySearch {
+      width: 100%; padding: 12px 14px; border: 2px solid #e5e7eb; border-radius: 10px;
+      font-size: 14px; font-family: 'Poppins', sans-serif; margin-bottom: 16px;
+    }
+    #currencySearch:focus { outline: none; border-color: #7c3aed; }
+
+    .spotlight { margin-bottom: 30px; }
+    .spotlight .section-title { margin-bottom: 12px; }
+
+    .rates { display: flex; gap: 16px; margin-bottom: 24px; }
+    .card {
+      flex: 1; background: white; padding: 22px; border-radius: 16px; text-align: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1); border-top: 4px solid transparent;
+    }
+    .official { border-top-color: #2563eb; }
+    .parallel { border-top-color: #dc2626; }
+    .card p { margin: 0 0 6px; color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+    .card h2 { margin: 0; font-size: 28px; font-weight: 800; }
+    .official h2 { color: #2563eb; }
+    .parallel h2 { color: #dc2626; }
+
+    .section-title { font-size: 18px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; position: relative; padding-bottom: 8px; }
+    .section-title::after {
+      content: ''; position: absolute; left: 0; bottom: 0; height: 3px; width: 46px;
+      background: linear-gradient(90deg, #059669, #7c3aed); border-radius: 3px;
+    }
+
+    .currency-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 8px; }
+    .currency-card {
+      background: white; border-radius: 14px; padding: 16px 8px; text-align: center;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.07); border: 1px solid #f0f0f0;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .currency-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+    .currency-flag { font-size: 26px; margin-bottom: 2px; }
+    .currency-code { font-size: 11px; color: #888; font-weight: 700; letter-spacing: 1px; }
+    .currency-value { font-size: 15px; font-weight: 800; color: #065f46; margin-top: 4px; transition: color 0.2s; }
+    .currency-value.up { color: #16a34a; }
+    .currency-value.down { color: #dc2626; }
+    .updated-note { text-align: center; font-size: 12px; color: #999; margin: 8px 0 24px; }
+
+    .show-more-btn {
+      display: block; margin: 0 auto 34px; background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: white; border: none; padding: 12px 24px; border-radius: 30px; font-size: 14px;
+      font-weight: 700; cursor: pointer; font-family: 'Poppins', sans-serif;
+      box-shadow: 0 4px 14px rgba(124,58,237,0.3);
+    }
+    .show-more-btn:hover { opacity: 0.92; }
+
+    dialog {
+      border: none; border-radius: 20px; padding: 0; width: 92%; max-width: 580px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.25); max-height: 85vh;
+    }
+    dialog::backdrop { background: rgba(0,0,0,0.5); }
+    .dialog-inner { padding: 26px; overflow-y: auto; max-height: 80vh; }
+    .dialog-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .dialog-header h3 { margin: 0; font-weight: 800; color: #3730a3; }
+    .close-btn {
+      background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 50%;
+      font-size: 16px; cursor: pointer; color: #555;
+    }
+    .close-btn:hover { background: #e2e8f0; }
+    .region-label { font-size: 12px; font-weight: 700; color: #7c3aed; text-transform: uppercase; letter-spacing: 1px; margin: 14px 0 8px; }
+
+    .converter {
+      background: linear-gradient(135deg, #ffffff, #eef2ff);
+      border-radius: 18px; padding: 24px; box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+      margin-bottom: 34px; border: 1px solid #e0e7ff;
+    }
+    .converter h3 { margin-top: 0; font-weight: 800; color: #3730a3; }
+    .converter-row { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+    .converter-row input, .converter-row select {
+      padding: 12px 14px; border: 2px solid #e5e7eb; border-radius: 10px;
+      font-size: 15px; font-family: 'Poppins', sans-serif; background: white;
+    }
+    .converter-row input { flex: 1; min-width: 120px; }
+    .converter-row select { min-width: 110px; }
+    .swap-btn {
+      background: #4f46e5; color: white; border: none; width: 40px; height: 40px;
+      border-radius: 50%; font-size: 16px; cursor: pointer; flex-shrink: 0;
+    }
+    .swap-btn:hover { background: #4338ca; }
+    .converter-result {
+      background: white; border-radius: 12px; padding: 18px; text-align: center;
+      font-size: 22px; font-weight: 800; color: #1e293b; margin-top: 6px;
+    }
+    .converter-result span { color: #4f46e5; }
+
+    .cross-table { width: 100%; border-collapse: collapse; background: white; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.06); margin-bottom: 34px; font-size: 13px; }
+    .cross-table th, .cross-table td { padding: 10px 12px; text-align: center; }
+    .cross-table th { background: #4f46e5; color: white; font-weight: 600; }
+    .cross-table tr:nth-child(even) { background: #f9fafb; }
+    .cross-table td:first-child, .cross-table th:first-child { text-align: left; font-weight: 600; }
+
+
+    .filter-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    #search {
+      flex: 2; min-width: 180px; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px;
+      font-size: 15px; font-family: 'Poppins', sans-serif;
+    }
+    #search:focus { outline: none; border-color: #16a34a; }
+    #regionFilter {
+      flex: 1; min-width: 140px; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px;
+      font-size: 15px; font-family: 'Poppins', sans-serif; font-weight: 600; background: white;
+    }
+    .filter-hint { font-size: 12px; color: #999; margin: -10px 0 16px; }
+
+    .country-picker-btn {
+      background: white; border: 2px solid #e5e7eb; border-radius: 10px; padding: 14px 18px;
+      font-size: 14px; font-weight: 700; cursor: pointer; color: #333; font-family: 'Poppins', sans-serif;
+      white-space: nowrap;
+    }
+    .country-picker-btn:hover { background: #f8fafc; }
+    .country-tile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .country-tile {
+      background: #f8fafc; border: 2px solid #e5e7eb; border-radius: 12px; padding: 14px 10px;
+      display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;
+      font-size: 12px; font-weight: 700; font-family: 'Poppins', sans-serif; color: #333;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .country-tile:hover { background: white; border-color: #7c3aed; }
+    .country-tile-flag { font-size: 24px; }
+    @media (max-width: 500px) { .country-tile-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .auth-tabs { display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 2px solid #f1f5f9; }
+    .auth-tab {
+      background: none; border: none; padding: 10px 4px; font-size: 14px; font-weight: 700;
+      color: #999; cursor: pointer; font-family: 'Poppins', sans-serif; border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+    }
+    .auth-tab.active { color: #7c3aed; border-bottom-color: #7c3aed; }
+    .auth-form { display: flex; flex-direction: column; }
+    .auth-label { font-size: 12px; font-weight: 700; color: #555; margin: 10px 0 4px; }
+    .auth-form input {
+      padding: 12px 14px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px;
+      font-family: 'Inter', sans-serif;
+    }
+    .auth-form input:focus { outline: none; border-color: #7c3aed; }
+    .auth-submit-btn {
+      margin-top: 16px; background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white;
+      border: none; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700;
+      cursor: pointer; font-family: 'Poppins', sans-serif;
+    }
+    .auth-submit-btn:hover { opacity: 0.9; }
+    .auth-msg { font-size: 13px; margin-top: 10px; text-align: center; font-weight: 600; }
+
+    .marketplace-locked {
+      background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 16px; padding: 30px;
+      text-align: center; margin-top: 30px;
+    }
+    .marketplace-locked p { color: #666; font-size: 14px; margin-bottom: 14px; }
+    .marketplace-posting-as {
+      background: #ede9fe; color: #5b21b6; font-size: 13px; font-weight: 700; padding: 10px 14px;
+      border-radius: 10px; margin-bottom: 14px; display: inline-block;
+    }
+    .mkt-field-label { font-size: 11px; font-weight: 700; color: #666; margin-bottom: 4px; display: block; }
+
+    .site-footer {
+      text-align: center; padding: 30px 0 10px; margin-top: 20px;
+      border-top: 1px solid #e5e7eb; color: #999; font-size: 13px;
+    }
+    .site-footer strong { color: #7c3aed; }
+
+    .chat-thread {
+      max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+      padding: 14px; background: #f8fafc; border-radius: 12px; margin-bottom: 14px;
+    }
+    .chat-bubble { max-width: 75%; padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.4; }
+    .chat-bubble.mine { align-self: flex-end; background: #7c3aed; color: white; border-bottom-right-radius: 4px; }
+    .chat-bubble.theirs { align-self: flex-start; background: white; border: 1px solid #e5e7eb; color: #333; border-bottom-left-radius: 4px; }
+    .chat-bubble .chat-time { display: block; font-size: 10px; opacity: 0.7; margin-top: 4px; }
+    .chat-empty { text-align: center; color: #999; font-size: 13px; padding: 20px; }
+    .chat-input-row { display: flex; gap: 8px; }
+    .chat-input-row input {
+      flex: 1; padding: 12px 14px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px;
+      font-family: 'Inter', sans-serif;
+    }
+    .chat-send-btn {
+      background: #7c3aed; color: white; border: none; padding: 12px 20px; border-radius: 10px;
+      font-weight: 700; cursor: pointer; font-family: 'Poppins', sans-serif;
+    }
+    .chat-send-btn:hover { background: #6d28d9; }
+
+    .listing-chat-btn {
+      font-size: 11px; font-weight: 700; border: 1px solid #ddd6fe; background: #f5f3ff; color: #5b21b6;
+      padding: 6px 10px; border-radius: 8px; cursor: pointer; font-family: 'Poppins', sans-serif;
+    }
+    .listing-chat-btn:hover { background: #ede9fe; }
+
+    .inbox-item {
+      background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px;
+      margin-bottom: 8px; cursor: pointer; transition: background 0.15s;
+    }
+    .inbox-item:hover { background: #f8fafc; }
+    .inbox-item .inbox-top { display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; }
+    .inbox-item .inbox-preview { font-size: 12px; color: #777; margin-top: 4px; }
+    .inbox-item .inbox-time { font-size: 11px; color: #aaa; }
+    .inbox-empty { text-align: center; color: #999; padding: 20px; font-size: 14px; }
+
+    #providerList { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .provider {
+      background: white; border-radius: 12px; padding: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; justify-content: space-between;
+      align-items: center; border-left: 5px solid #16a34a; transition: transform 0.15s;
+    }
+    .provider:hover { transform: translateX(3px); }
+    @media (max-width: 700px) { #providerList { grid-template-columns: 1fr; } }
+    .provider-name { font-weight: 700; display: flex; align-items: center; gap: 8px; font-size: 15px; flex-wrap: wrap; }
+    .badge {
+      font-size: 10px; background: linear-gradient(135deg, #fbbf24, #f59e0b); color: white;
+      padding: 3px 9px; border-radius: 20px; font-weight: 700; letter-spacing: 0.5px;
+    }
+    .region-tag {
+      font-size: 10px; background: #ede9fe; color: #6d28d9; padding: 3px 9px;
+      border-radius: 20px; font-weight: 700; letter-spacing: 0.5px;
+    }
+    .provider-notes { color: #888; font-size: 13px; margin-top: 3px; }
+    .provider-rate { font-size: 20px; font-weight: 800; color: #16a34a; }
+    .disclaimer { font-size: 12px; color: #aaa; margin-top: 20px; text-align: center; }
+    .bg-blob {
+      position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.18; z-index: -1; pointer-events: none;
+    }
+
+    .currency-rain {
+      position: fixed; inset: 0; overflow: hidden; z-index: -2; pointer-events: none;
+    }
+    .rain-symbol {
+      position: absolute; top: -60px; font-weight: 800;
+      font-family: 'Poppins', sans-serif; animation: fall linear infinite;
+    }
+    @keyframes fall {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(115vh); }
+    }
+
+    .explore-section {
+      background: linear-gradient(135deg, #1e1b4b, #4c1d95, #7c3aed);
+      border-radius: 20px; padding: 26px; margin-bottom: 34px; color: white;
+      box-shadow: 0 10px 30px rgba(76,29,149,0.3);
+    }
+    .explore-section h3 { margin-top: 0; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+    .explore-section p.explore-sub { font-size: 13px; color: rgba(255,255,255,0.8); margin-top: -6px; margin-bottom: 16px; }
+    .explore-input-row { display: flex; gap: 10px; }
+    #exploreQuery {
+      flex: 1; padding: 14px 16px; border: none; border-radius: 10px; font-size: 14px;
+      font-family: 'Inter', sans-serif;
+    }
+    #exploreQuery:focus { outline: 3px solid rgba(255,255,255,0.4); }
+    .explore-go-btn {
+      background: white; color: #4c1d95; border: none; padding: 14px 22px; border-radius: 10px;
+      font-weight: 700; cursor: pointer; font-family: 'Poppins', sans-serif;
+    }
+    .explore-go-btn:hover { background: #f3f0ff; }
+    .explore-results { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .explore-result-card {
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between;
+      align-items: center; gap: 10px; backdrop-filter: blur(6px);
+    }
+    .explore-result-text { font-size: 14px; }
+    .explore-result-text .rtitle { font-weight: 700; display: block; }
+    .explore-result-text .rdesc { font-size: 12px; color: rgba(255,255,255,0.75); }
+    .explore-go-link {
+      background: white; color: #4c1d95; border: none; padding: 8px 16px; border-radius: 20px;
+      font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; white-space: nowrap;
+      font-family: 'Poppins', sans-serif;
+    }
+    .explore-go-link:hover { background: #f3f0ff; }
+    .explore-empty { font-size: 13px; color: rgba(255,255,255,0.7); text-align: center; padding: 10px 0; }
+    .explore-note { font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 14px; text-align: center; }
+
+    .marketplace-section { margin-bottom: 34px; }
+    .marketplace-intro { font-size: 13px; color: #666; margin: -8px 0 16px; }
+    .marketplace-safety {
+      background: #fef3c7; border: 1px solid #fde68a; border-radius: 10px; padding: 12px 16px;
+      font-size: 12px; color: #92400e; margin-bottom: 18px;
+    }
+    .marketplace-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+    .listing-card {
+      background: white; border-radius: 14px; padding: 18px; box-shadow: 0 4px 14px rgba(0,0,0,0.07);
+      border-left: 5px solid #f59e0b; transition: transform 0.15s;
+    }
+    .listing-card:hover { transform: translateY(-3px); }
+    .listing-swap { font-size: 16px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
+    .listing-swap .arrow { color: #f59e0b; margin: 0 6px; }
+    .listing-location { font-size: 12px; color: #999; margin-bottom: 8px; }
+    .listing-poster { font-size: 13px; font-weight: 700; color: #333; }
+    .listing-notes { font-size: 12px; color: #888; margin: 4px 0 10px; }
+    .listing-contact {
+      display: inline-block; background: #fef3c7; color: #92400e; font-size: 12px; font-weight: 700;
+      padding: 6px 12px; border-radius: 20px;
+    }
+    .listing-empty { text-align: center; color: #999; padding: 30px; font-size: 14px; grid-column: 1 / -1; }
+    .listing-card.status-taken, .listing-card.status-sold { opacity: 0.6; border-left-color: #9ca3af; }
+    .listing-status-badge {
+      display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+      padding: 3px 10px; border-radius: 20px; margin-left: 8px; text-transform: uppercase;
+    }
+    .status-available .listing-status-badge { background: #dcfce7; color: #16a34a; }
+    .status-taken .listing-status-badge { background: #fee2e2; color: #b91c1c; }
+    .status-sold .listing-status-badge { background: #e0e7ff; color: #4338ca; }
+    .listing-phone { font-size: 12px; color: #333; font-weight: 600; margin-top: 4px; }
+    .listing-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+    .listing-action-btn {
+      font-size: 11px; font-weight: 700; border: 1px solid #e5e7eb; background: white;
+      padding: 6px 10px; border-radius: 8px; cursor: pointer; font-family: 'Poppins', sans-serif;
+    }
+    .listing-action-btn:hover { background: #f8fafc; }
+    .listing-action-btn.danger { color: #dc2626; border-color: #fecaca; }
+    .listing-action-btn.warn { color: #b45309; border-color: #fde68a; }
+    .listing-action-btn.success { color: #4338ca; border-color: #ddd6fe; }
+    @media (max-width: 900px) { .marketplace-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .marketplace-grid { grid-template-columns: 1fr; } }
+
+    .form-box {
+      background: linear-gradient(135deg, #ffffff, #f0fdf4); border-radius: 16px; padding: 24px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06); margin-top: 30px; border: 1px solid #dcfce7;
+    }
+    .form-box h3 { margin-top: 0; font-weight: 700; color: #166534; }
+    .form-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .form-row input, .form-row select {
+      flex: 1; min-width: 140px; padding: 12px 14px; border: 2px solid #e5e7eb;
+      border-radius: 10px; font-size: 14px; font-family: 'Poppins', sans-serif; background: white;
+    }
+    .form-row input:focus, .form-row select:focus { outline: none; border-color: #16a34a; }
+    .form-box button {
+      background: linear-gradient(135deg, #16a34a, #15803d); color: white; border: none;
+      padding: 14px 20px; border-radius: 10px; font-size: 15px; font-weight: 700;
+      cursor: pointer; width: 100%; font-family: 'Poppins', sans-serif;
+    }
+    .form-box button:hover { opacity: 0.9; }
+    #formMsg { font-size: 13px; margin-top: 10px; text-align: center; font-weight: 600; }
+
+    @media (max-width: 600px) {
+      .currency-grid { grid-template-columns: repeat(2, 1fr); }
+      .widget-row { grid-template-columns: 1fr; }
+    }
+
+    .confirm-btn { flex:1; border:none; padding:12px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; font-family:'Poppins',sans-serif; }
+    .confirm-btn:hover { opacity:.9; }
+    html[data-theme="dark"] #confirmNo { background:#334155 !important; color:#e2e8f0 !important; }
+    .photo-preview { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+    .photo-preview img { width:84px; height:84px; object-fit:cover; border-radius:10px; border:2px solid #e5e7eb; }
+    .item-photo { width:100%; height:170px; object-fit:cover; border-radius:10px; cursor:zoom-in; display:block; background:#e5e7eb; }
+    .item-photo-none { width:100%; height:110px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:40px; background:#f1f5f9; }
+    .item-thumbs { display:flex; gap:6px; margin-top:6px; }
+    .item-thumbs img { width:44px; height:44px; object-fit:cover; border-radius:8px; cursor:pointer; border:2px solid transparent; }
+    .item-thumbs img:hover { border-color:#7c3aed; }
+    .item-price { font-weight:800; color:#16a34a; }
+    .item-tags { font-size:11px; font-weight:700; color:#6d28d9; margin:4px 0; }
+    html[data-theme="dark"] .photo-preview img { border-color:#475569; }
+    html[data-theme="dark"] .item-photo { background:#0f172a; }
+    html[data-theme="dark"] .item-photo-none { background:#0f172a; }
+    html[data-theme="dark"] .item-tags { color:#c4b5fd; }
+    html[data-theme="dark"] #itemSearch, html[data-theme="dark"] #itemCategoryFilter { background:#0f172a; color:#f1f5f9; border-color:#475569 !important; }
+    .site-footer { text-align:center; }
+    .footer-brand { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:6px; }
+    .footer-logo { width:44px; height:44px; display:block; }
+    .footer-name { font-family:'Poppins',sans-serif; font-weight:900; font-size:22px;
+      background:linear-gradient(90deg,#7c3aed,#2563eb,#059669); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+    .footer-tag { margin:0 0 12px; font-size:13px; }
+    .footer-contact { display:inline-block; padding:9px 18px; border-radius:22px; border:1.5px solid #ddd6fe; background:#fff; color:#4c1d95;
+      font-family:'Poppins',sans-serif; font-weight:700; font-size:13px; text-decoration:none; transition:transform .15s, background .15s, color .15s; }
+    .footer-contact:hover { background:#7c3aed; color:#fff; border-color:#7c3aed; transform:translateY(-2px); }
+    .footer-copy { margin:14px 0 0; font-size:12px; }
+    html[data-theme="dark"] .footer-contact { background:#1e293b; border-color:#475569; color:#e2e8f0; }
+    html[data-theme="dark"] .footer-contact:hover { background:#7c3aed; border-color:#7c3aed; color:#fff; }
+    /* ================= DARK MODE ================= */
+    .theme-toggle { font-size: 15px; padding: 7px 12px; line-height: 1; }
+    .rain-symbol.c0 { color: rgba(91,33,182,0.5); } .rain-symbol.c1 { color: rgba(4,120,87,0.5); }
+    .rain-symbol.c2 { color: rgba(29,78,216,0.5); } .rain-symbol.c3 { color: rgba(190,24,93,0.48); }
+    html[data-theme="dark"] { color-scheme: dark; }
+    html[data-theme="dark"] body {
+      background:
+        radial-gradient(circle at 15% 200px, rgba(124,58,237,0.16), transparent 400px),
+        radial-gradient(circle at 85% 800px, rgba(5,150,105,0.14), transparent 450px),
+        radial-gradient(circle at 20% 1400px, rgba(37,99,235,0.14), transparent 400px),
+        radial-gradient(circle at 80% 2000px, rgba(219,39,119,0.10), transparent 400px),
+        linear-gradient(180deg, #0b1020 0%, #0f172a 400px);
+      background-attachment: fixed, fixed, fixed, fixed, scroll;
+      background-color: #0f172a;
+      color: #e5e7eb;
+    }
+    html[data-theme="dark"] body::before, html[data-theme="dark"] body::after { opacity: 0.18; }
+    html[data-theme="dark"] .rain-symbol.c0 { color: rgba(167,139,250,0.40); }
+    html[data-theme="dark"] .rain-symbol.c1 { color: rgba(52,211,153,0.38); }
+    html[data-theme="dark"] .rain-symbol.c2 { color: rgba(96,165,250,0.40); }
+    html[data-theme="dark"] .rain-symbol.c3 { color: rgba(244,114,182,0.38); }
+    html[data-theme="dark"] .site-nav { background: rgba(15,23,42,0.88); border-bottom-color: rgba(167,139,250,0.25); box-shadow: 0 4px 18px rgba(0,0,0,0.5); }
+    html[data-theme="dark"] .hero-nav-btn { background: #1e293b; border-color: #475569; color: #e2e8f0; box-shadow: none; }
+    html[data-theme="dark"] .hero-nav-btn:hover { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+    html[data-theme="dark"] .account-btn { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+    html[data-theme="dark"] .account-btn:hover { background: #6d28d9; }
+    html[data-theme="dark"] .header { background: linear-gradient(120deg, #1e1b4b 0%, #0f2a3d 55%, #2a1230 100%); color: #e5e7eb; }
+    html[data-theme="dark"] .hero-headline, html[data-theme="dark"] .hero-stat-num { color: #f8fafc; }
+    html[data-theme="dark"] .hero-sub, html[data-theme="dark"] .hero-stat-label,
+    html[data-theme="dark"] .hero-card-label, html[data-theme="dark"] .base-picker label,
+    html[data-theme="dark"] .widget-label, html[data-theme="dark"] .trend-item span.code,
+    html[data-theme="dark"] .auth-label { color: #cbd5e1; }
+    html[data-theme="dark"] .widget-sub, html[data-theme="dark"] .updated-note, html[data-theme="dark"] .filter-hint,
+    html[data-theme="dark"] .card p, html[data-theme="dark"] .currency-code, html[data-theme="dark"] .provider-notes,
+    html[data-theme="dark"] .disclaimer, html[data-theme="dark"] .listing-location, html[data-theme="dark"] .listing-notes,
+    html[data-theme="dark"] .marketplace-intro, html[data-theme="dark"] .marketplace-locked p,
+    html[data-theme="dark"] .mkt-field-label, html[data-theme="dark"] .chat-empty, html[data-theme="dark"] .inbox-empty,
+    html[data-theme="dark"] .inbox-item .inbox-preview, html[data-theme="dark"] .inbox-item .inbox-time,
+    html[data-theme="dark"] .site-footer, html[data-theme="dark"] .auth-tab { color: #94a3b8; }
+    html[data-theme="dark"] .auth-tabs { border-bottom-color: #334155; }
+    html[data-theme="dark"] .auth-tab.active { color: #a78bfa; }
+    html[data-theme="dark"] .hero-card, html[data-theme="dark"] .base-picker, html[data-theme="dark"] .card,
+    html[data-theme="dark"] .currency-card, html[data-theme="dark"] .provider, html[data-theme="dark"] .listing-card,
+    html[data-theme="dark"] .converter-result, html[data-theme="dark"] .cross-table, html[data-theme="dark"] .inbox-item,
+    html[data-theme="dark"] .chat-bubble.theirs, html[data-theme="dark"] .listing-action-btn,
+    html[data-theme="dark"] .country-picker-btn { background: #1e293b; border-color: #334155; color: #e5e7eb; box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
+    html[data-theme="dark"] .widget-tile { background: rgba(30,41,59,0.85); border-color: rgba(148,163,184,0.2); color: #e5e7eb; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    html[data-theme="dark"] .search-tile:hover { background: rgba(51,65,85,0.95); }
+    html[data-theme="dark"] .converter, html[data-theme="dark"] .form-box { background: linear-gradient(135deg, #1e293b, #172033); border-color: #334155; }
+    html[data-theme="dark"] .converter h3, html[data-theme="dark"] .dialog-header h3 { color: #c4b5fd; }
+    html[data-theme="dark"] .form-box h3 { color: #4ade80; }
+    html[data-theme="dark"] .converter-result, html[data-theme="dark"] .listing-swap, html[data-theme="dark"] .listing-poster,
+    html[data-theme="dark"] .listing-phone, html[data-theme="dark"] .provider-name { color: #f1f5f9; }
+    html[data-theme="dark"] .converter-result span { color: #a5b4fc; }
+    html[data-theme="dark"] .cross-table tr:nth-child(even) { background: #172033; }
+    html[data-theme="dark"] .cross-table th { background: #4338ca; }
+    html[data-theme="dark"] .cross-table td { border-color: #334155; color: #e5e7eb; }
+    html[data-theme="dark"] .currency-value { color: #6ee7b7; }
+    html[data-theme="dark"] .currency-value.up, html[data-theme="dark"] .trend-item, html[data-theme="dark"] .provider-rate { color: #4ade80; }
+    html[data-theme="dark"] .currency-value.down { color: #f87171; }
+    html[data-theme="dark"] .official h2 { color: #60a5fa; } html[data-theme="dark"] .parallel h2 { color: #f87171; }
+    html[data-theme="dark"] input, html[data-theme="dark"] select, html[data-theme="dark"] textarea,
+    html[data-theme="dark"] .hero-card-select, html[data-theme="dark"] .base-picker select,
+    html[data-theme="dark"] .base-select-inline, html[data-theme="dark"] #currencySearch,
+    html[data-theme="dark"] #search, html[data-theme="dark"] #regionFilter,
+    html[data-theme="dark"] .form-row input, html[data-theme="dark"] .form-row select,
+    html[data-theme="dark"] .auth-form input { background: #0f172a; color: #f1f5f9; border-color: #475569; }
+    html[data-theme="dark"] input::placeholder, html[data-theme="dark"] textarea::placeholder { color: #64748b; }
+    html[data-theme="dark"] dialog { background: #1e293b; color: #e5e7eb; box-shadow: 0 20px 60px rgba(0,0,0,0.7); }
+    html[data-theme="dark"] dialog::backdrop { background: rgba(0,0,0,0.7); }
+    html[data-theme="dark"] .close-btn { background: #334155; color: #e2e8f0; }
+    html[data-theme="dark"] .close-btn:hover { background: #475569; }
+    html[data-theme="dark"] .country-tile { background: #0f172a; border-color: #334155; color: #e5e7eb; }
+    html[data-theme="dark"] .country-tile:hover, html[data-theme="dark"] .country-picker-btn:hover { background: #334155; border-color: #7c3aed; }
+    html[data-theme="dark"] .marketplace-locked { background: #1e293b; border-color: #475569; }
+    html[data-theme="dark"] .listing-chat-btn, html[data-theme="dark"] .region-tag { background: #2e1065; border-color: #5b21b6; color: #ddd6fe; }
+    html[data-theme="dark"] .listing-chat-btn:hover { background: #4c1d95; }
+    html[data-theme="dark"] .listing-action-btn:hover { background: #334155; }
+    html[data-theme="dark"] .listing-action-btn.danger { color: #f87171; border-color: #7f1d1d; }
+    html[data-theme="dark"] .listing-action-btn.warn { color: #fbbf24; border-color: #78350f; }
+    html[data-theme="dark"] .listing-action-btn.success { color: #a5b4fc; border-color: #3730a3; }
+    html[data-theme="dark"] .inbox-item:hover { background: #334155; }
+    html[data-theme="dark"] .chat-thread, html[data-theme="dark"] .chat-messages { background: #0f172a; }
+    html[data-theme="dark"] .status-available .listing-status-badge { background: #064e3b; color: #6ee7b7; }
+    html[data-theme="dark"] .status-taken .listing-status-badge { background: #7f1d1d; color: #fecaca; }
+    html[data-theme="dark"] .status-sold .listing-status-badge { background: #312e81; color: #c7d2fe; }
+    html[data-theme="dark"] .marketplace-safety, html[data-theme="dark"] .listing-contact { background: #422006; color: #fcd34d; border-color: #78350f; }
+    html[data-theme="dark"] .site-footer { border-top-color: #334155; }
+    html[data-theme="dark"] .bg-blob { opacity: 0.12; }
+    html[data-theme="dark"] .section-title { color: #f1f5f9; }
+    html[data-theme="dark"] a { color: #93c5fd; }
+    html[data-theme="dark"] .hero-nav-btn, html[data-theme="dark"] .explore-go-btn, html[data-theme="dark"] .explore-go-link { text-decoration: none; }
+    html, body, .site-nav, .hero-card, .card, .currency-card, .provider, .listing-card, dialog, input, select { transition: background-color .25s, color .25s, border-color .25s; }
+  </style>
+</head>
+<body>
+  <div class="currency-rain" id="currencyRain"></div>
+  <nav class="site-nav" id="top">
+    <div class="hero-topbar">
+      <a class="hero-logo" href="#top" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;" title="Back to top">
+        <img class="logo-img" src="favicon.svg" alt="GlobalRate logo"><span class="logo-text">GlobalRate</span><span class="hero-logo-symbols">$ € £</span>
+      </a>
+      <div class="hero-nav-actions">
+        <button class="hero-nav-btn" onclick="openExplorer()">🔍 Explore</button>
+        <a class="hero-nav-btn" href="#marketplaceSection">🏙️ Marketplace</a>
+        <a class="hero-nav-btn" href="#rentalsSection">🚗 Rentals</a>
+        <a class="hero-nav-btn" href="#itemsSection">📦 Items</a>
+        <button class="hero-nav-btn" id="messagesNavBtn" onclick="openInbox()" style="display:none;">💬 Messages</button>
+        <button class="hero-nav-btn theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Switch light / dark mode" aria-label="Switch light or dark mode">🌙</button>
+        <a class="hero-nav-btn" id="adminNavBtn" href="admin.html" style="display:none;">🛡️ Admin</a>
+        <button class="hero-nav-btn account-btn" id="accountNavBtn" onclick="openAuthDialog()">👤 Sign In</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="header">
+    <div class="hero-wrap">
+      <div class="hero-left">
+        <p class="hero-eyebrow"><span class="live-dot"></span>LIVE MARKET FEED</p>
+        <h1 class="hero-headline">Convert, compare,<br>and connect — your way</h1>
+        <p class="hero-sub">Live world currency rates, an interactive converter, and a local marketplace to connect with real people across Europe, Africa & Asia.</p>
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <div class="hero-stat-num">20+</div>
+            <div class="hero-stat-label">Currencies</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-num">13</div>
+            <div class="hero-stat-label">Remittance agents</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-num" id="heroRate">--</div>
+            <div class="hero-stat-label" id="heroRateCaption">Live rate</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-card">
+        <p class="hero-card-label">🌍 View live rates in:</p>
+        <select id="baseSelect" class="hero-card-select"></select>
+        <span id="heroLocationFlag" style="display:none;"></span><span id="heroLocationCode" style="display:none;"></span>
+
+        <p class="hero-card-label" style="margin-top:18px;">🔁 Quick convert:</p>
+        <div class="converter-row" style="margin-bottom:8px;">
+          <input id="amountInput" type="number" value="100" min="0">
+          <select id="fromCurrency"></select>
+          <button class="swap-btn" onclick="swapCurrencies()">⇄</button>
+          <select id="toCurrency"></select>
+        </div>
+        <div class="converter-result" id="converterResult">--</div>
+
+        <div class="trending-list" id="trendingList" style="margin-top:14px;">
+          <div class="trend-item"><span class="code">USD</span><span id="trend-USD">--</span></div>
+          <div class="trend-item"><span class="code">EUR</span><span id="trend-EUR">--</span></div>
+          <div class="trend-item"><span class="code">PKR</span><span id="trend-PKR">--</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="updated-note" id="lastUpdated" style="margin-top:6px;">Base rate refreshes every 30 minutes • prices tick live in between</p>
+
+  <dialog id="confirmDialog" style="max-width:380px;">
+    <div class="dialog-inner" style="text-align:center;">
+      <div style="font-size:38px;">🗑️</div>
+      <h3 id="confirmTitle" style="margin:6px 0 8px;font-family:'Poppins',sans-serif;">Delete?</h3>
+      <p id="confirmText" style="font-size:13px;opacity:.75;margin:0 0 20px;"></p>
+      <div style="display:flex;gap:10px;">
+        <button id="confirmNo" class="confirm-btn" style="background:#e2e8f0;color:#334155;">Cancel</button>
+        <button id="confirmYes" class="confirm-btn" style="background:#dc2626;color:#fff;">Yes, delete</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="photoDialog" style="max-width:760px;">
+    <div class="dialog-inner" style="text-align:center;">
+      <div class="dialog-header"><h3>📷 Photo</h3><button class="close-btn" onclick="document.getElementById('photoDialog').close()">✕</button></div>
+      <img id="photoDialogImg" alt="Item photo" style="max-width:100%;max-height:68vh;border-radius:12px;">
+    </div>
+  </dialog>
+
+  <dialog id="authDialog">
+    <div class="dialog-inner">
+      <div class="dialog-header">
+        <h3 id="authDialogTitle">Sign In</h3>
+        <button class="close-btn" onclick="document.getElementById('authDialog').close()">✕</button>
+      </div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tabLogin" onclick="switchAuthTab('login')">Sign In</button>
+        <button class="auth-tab" id="tabRegister" onclick="switchAuthTab('register')">Create Account</button>
+      </div>
+
+      <div id="loginForm" class="auth-form">
+        <label class="auth-label">📧 Email</label>
+        <input id="loginEmail" type="email" placeholder="you@example.com">
+        <label class="auth-label">🔒 Password</label>
+        <input id="loginPassword" type="password" placeholder="Your password">
+        <button class="auth-submit-btn" onclick="doLogin()">Sign In</button>
+        <p id="loginMsg" class="auth-msg"></p>
+      </div>
+
+      <div id="registerForm" class="auth-form" style="display:none;">
+        <label class="auth-label">👤 Full name</label>
+        <input id="regName" type="text" placeholder="e.g. MightSmith">
+        <label class="auth-label">📧 Email</label>
+        <input id="regEmail" type="email" placeholder="you@example.com">
+        <label class="auth-label">📱 Phone number</label>
+        <input id="regPhone" type="tel" placeholder="e.g. +49...">
+        <label class="auth-label">🔒 Password</label>
+        <input id="regPassword" type="password" placeholder="At least 6 characters">
+        <button class="auth-submit-btn" onclick="doRegister()">Create Account</button>
+        <p id="registerMsg" class="auth-msg"></p>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="exploreDialog">
+    <div class="dialog-inner">
+      <div class="dialog-header">
+        <h3>🌍 Explore world currencies</h3>
+        <button class="close-btn" onclick="document.getElementById('exploreDialog').close()">✕</button>
+      </div>
+      <input id="currencySearch" type="text" placeholder="Search by code, e.g. PKR, GHS, JPY...">
+      <div class="currency-grid" id="exploreGrid"></div>
+    </div>
+  </dialog>
+
+  <div class="spotlight">
+    <h3 class="section-title">🇬🇧 GBP ⇄ 🇺🇸 USD</h3>
+    <div class="rates">
+      <div class="card official">
+        <p>1 USD in GBP</p>
+        <h2 id="usdInGbp">--</h2>
+      </div>
+      <div class="card parallel">
+        <p>1 GBP in USD</p>
+        <h2 id="gbpInUsd">--</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-blob" style="width:260px; height:260px; background:#7c3aed; top:1900px; left:-100px;"></div>
+
+  <h3 class="section-title">🔄 How major currencies convert</h3>
+  <table class="cross-table" id="crossTable">
+    <thead><tr id="crossTableHead"></tr></thead>
+    <tbody id="crossTableBody"></tbody>
+  </table>
+
+  <div class="bg-blob" style="width:220px; height:220px; background:#059669; top:2500px; right:-90px;"></div>
+  <h3 class="section-title">💱 Compare remittance agents worldwide</h3>
+  <div class="filter-row">
+    <input id="search" type="text" placeholder="Search LemFi, Wise, MoneyGram...">
+    <button class="country-picker-btn" onclick="document.getElementById('countryDialog').showModal()">
+      🌍 <span id="selectedCountryLabel">All regions</span> ▾
+    </button>
+    <select id="regionFilter" style="display:none;">
+      <option value="All">All regions</option>
+      <option value="Global">Global</option>
+      <option value="Nigeria">Nigeria</option>
+      <option value="Kenya">Kenya</option>
+      <option value="Cameroon">Cameroon</option>
+      <option value="Bangladesh">Bangladesh</option>
+      <option value="Pakistan">Pakistan</option>
+      <option value="Algeria">Algeria</option>
+      <option value="Morocco">Morocco</option>
+      <option value="Turkey">Turkey</option>
+      <option value="Lithuania">Lithuania</option>
+      <option value="Africa">Africa (general)</option>
+    </select>
+  </div>
+  <p class="filter-hint">💡 Choose a country to see local remittance agents and currency</p>
+  <div id="providerList"></div>
+
+  <dialog id="countryDialog">
+    <div class="dialog-inner">
+      <div class="dialog-header">
+        <h3>🌍 Choose a country</h3>
+        <button class="close-btn" onclick="document.getElementById('countryDialog').close()">✕</button>
+      </div>
+      <div class="country-tile-grid" id="countryTileGrid"></div>
+    </div>
+  </dialog>
+
+  <p class="disclaimer">Provider rates are stored in Naira and auto-converted into whichever currency is selected above using live exchange rates. Figures include community submissions and may not reflect live app rates. Base currency rates refresh from a live source every 30 minutes; small movements shown in between simulate market ticking. Always check the provider directly before sending money.</p>
+
+  <div class="marketplace-section" id="marketplaceSection">
+    <h3 class="section-title">🏙️ Local Currency Marketplace</h3>
+    <p class="marketplace-intro">Have cash in one currency and want another? Post it here so people nearby can find and connect with you directly — no app, no middleman.</p>
+    <div class="marketplace-safety">
+      ⚠️ Safety first: this is a public board. Meet in safe, public places, verify identity before exchanging, and never send money before meeting in person. Neither of us can vouch for any listing here.
+    </div>
+    <div class="marketplace-grid" id="marketplaceList"></div>
+
+    <div id="marketplaceLocked" class="marketplace-locked">
+      <p>🔒 Sign in or create a free account to post a listing — this keeps names and phone numbers tied to real accounts, not anonymous posts.</p>
+      <button class="hero-nav-btn account-btn" onclick="openAuthDialog()">👤 Sign In / Create Account</button>
+    </div>
+
+    <div id="marketplaceForm" class="form-box" style="display:none;">
+      <h3>📌 Post what you have</h3>
+      <p class="marketplace-posting-as" id="postingAsLabel"></p>
+      <div class="form-row">
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">💰 Currency you have</label>
+          <input id="mHaveCurrency" type="text" placeholder="e.g. USD">
+        </div>
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">🔢 Amount</label>
+          <input id="mHaveAmount" type="number" placeholder="e.g. 200">
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">🎯 Currency you want</label>
+          <input id="mWantCurrency" type="text" placeholder="e.g. EUR">
+        </div>
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">📍 Location</label>
+          <input id="mLocation" type="text" placeholder="e.g. Berlin, Germany">
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex:1 1 100%;">
+          <label class="mkt-field-label">📝 Notes (optional)</label>
+          <input id="mNotes" type="text" placeholder="Any extra detail for interested buyers">
+        </div>
+      </div>
+      <button onclick="postListing()">Post Listing</button>
+      <p id="marketplaceMsg"></p>
+    </div>
+  </div>
+
+  <div class="marketplace-section" id="rentalsSection">
+    <h3 class="section-title">🚗 Car, Taxi & E-Bike Rentals</h3>
+    <p class="marketplace-intro">Got a car, offer taxi rides, or have an electric bike sitting idle? List it here — person-to-person rentals, no platform fee, inspired by what's already everywhere on the streets of Lithuania.</p>
+    <div class="marketplace-safety">
+      ⚠️ Safety first: verify the vehicle, the person, and any documentation in person before handing over cash or keys. Neither of us can vouch for any listing here.
+    </div>
+    <div class="marketplace-grid" id="rentalsList"></div>
+
+    <div id="rentalsLocked" class="marketplace-locked">
+      <p>🔒 Sign in or create a free account to list a car, taxi service, or e-bike for rent.</p>
+      <button class="hero-nav-btn account-btn" onclick="openAuthDialog()">👤 Sign In / Create Account</button>
+    </div>
+
+    <div id="rentalsForm" class="form-box" style="display:none;">
+      <h3>🚘 List your car, taxi, or bike</h3>
+      <p class="marketplace-posting-as" id="rentalsPostingAsLabel"></p>
+      <div class="form-row">
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">🚲 Type</label>
+          <select id="rVehicleType">
+            <option value="Car rental">Car rental</option>
+            <option value="Taxi service">Taxi service</option>
+            <option value="Electric bike">Electric bike</option>
+            <option value="Electric scooter">Electric scooter</option>
+          </select>
+        </div>
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">💶 Price per day</label>
+          <input id="rPrice" type="number" placeholder="e.g. 25">
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex:1 1 100%;">
+          <label class="mkt-field-label">📝 Description</label>
+          <input id="rDescription" type="text" placeholder="e.g. 2019 VW Golf, automatic, great for city driving">
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">📍 Location</label>
+          <input id="rLocation" type="text" placeholder="e.g. Vilnius Old Town">
+        </div>
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">🗒️ Notes (optional)</label>
+          <input id="rNotes" type="text" placeholder="Pickup times, requirements, etc.">
+        </div>
+      </div>
+      <button onclick="postRental()">Post Listing</button>
+      <p id="rentalsMsg"></p>
+    </div>
+  </div>
+
+  <div class="marketplace-section" id="itemsSection">
+    <h3 class="section-title">📦 Items & Gadgets for Sale</h3>
+    <p class="marketplace-intro">Selling a phone, laptop, bike, furniture or anything else? Post it with photos and chat with buyers nearby — person-to-person, no platform fee.</p>
+    <div class="marketplace-safety">
+      ⚠️ Safety first: meet in a public place, check the item before paying, and never send money in advance to someone you haven't met.
+    </div>
+    <div class="filter-row">
+      <input id="itemSearch" type="text" placeholder="Search items (e.g. iPhone, laptop, bike)..." oninput="renderItems()" style="flex:2;min-width:180px;padding:12px 14px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'Poppins',sans-serif;">
+      <select id="itemCategoryFilter" onchange="renderItems()" style="flex:1;min-width:150px;padding:12px 14px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'Poppins',sans-serif;"></select>
+    </div>
+    <div class="marketplace-grid" id="itemsList"></div>
+
+    <div id="itemsLocked" class="marketplace-locked">
+      <p>🔒 Sign in or create a free account to sell an item.</p>
+      <button class="hero-nav-btn account-btn" onclick="openAuthDialog()">👤 Sign In / Create Account</button>
+    </div>
+
+    <div id="itemsForm" class="form-box" style="display:none;">
+      <h3>🛍️ Sell an item</h3>
+      <p class="marketplace-posting-as" id="itemsPostingAsLabel"></p>
+      <div class="form-row">
+        <div style="flex:2; min-width:200px;">
+          <label class="mkt-field-label">🏷️ What are you selling?</label>
+          <input id="iTitle" type="text" maxlength="100" placeholder="e.g. iPhone 13, 128GB, black">
+        </div>
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">💶 Price (€)</label>
+          <input id="iPrice" type="number" min="0" placeholder="e.g. 350">
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">📂 Category</label>
+          <select id="iCategory"></select>
+        </div>
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">✨ Condition</label>
+          <select id="iCondition">
+            <option>New</option><option>Like new</option><option selected>Good</option><option>Used</option>
+          </select>
+        </div>
+        <div style="flex:1; min-width:140px;">
+          <label class="mkt-field-label">📍 Location</label>
+          <input id="iLocation" type="text" placeholder="e.g. Vilnius, Naujamiestis">
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex:1 1 100%;">
+          <label class="mkt-field-label">📝 Description (optional)</label>
+          <input id="iDescription" type="text" maxlength="600" placeholder="Age, what's included, why you're selling...">
+        </div>
+      </div>
+      <div class="form-row">
+        <div style="flex:1 1 100%;">
+          <label class="mkt-field-label">📷 Photos (up to 4)</label>
+          <input id="iPhotos" type="file" accept="image/*" multiple onchange="previewItemPhotos()">
+          <div class="photo-preview" id="iPhotoPreview"></div>
+        </div>
+      </div>
+      <button onclick="postItem()">Post Item</button>
+      <p id="itemsMsg"></p>
+    </div>
+  </div>
+
+  <dialog id="inboxDialog">
+    <div class="dialog-inner">
+      <div class="dialog-header">
+        <h3>💬 My Messages</h3>
+        <button class="close-btn" onclick="document.getElementById('inboxDialog').close()">✕</button>
+      </div>
+      <div id="inboxList"></div>
+    </div>
+  </dialog>
+
+  <dialog id="chatDialog">
+    <div class="dialog-inner">
+      <div class="dialog-header">
+        <h3 id="chatDialogTitle">Chat</h3>
+        <button class="close-btn" onclick="document.getElementById('chatDialog').close()">✕</button>
+      </div>
+      <div class="chat-thread" id="chatThread"></div>
+      <div class="chat-input-row">
+        <input id="chatInput" type="text" placeholder="Type a message...">
+        <button class="chat-send-btn" onclick="sendChatMessage()">Send</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="explore-section">
+    <h3>🧭 Ask & Explore</h3>
+    <p class="explore-sub">Type a currency, country, or app name and get sent straight to its official site.</p>
+    <div class="explore-input-row">
+      <input id="exploreQuery" type="text" placeholder="Try 'Turkey', 'Lithuania', 'Wise', 'MoneyGram'...">
+      <button class="explore-go-btn" onclick="runExploreSearch()">Search</button>
+    </div>
+    <div class="explore-results" id="exploreResults"></div>
+    <p class="explore-note">Smart keyword search — matches your query to real official sites. Not a live AI model.</p>
+  </div>
+
+  <div class="form-box">
+    <h3>📢 Seen a rate today? Share it</h3>
+    <div class="form-row">
+      <input id="fName" type="text" placeholder="App name (e.g. LemFi)">
+      <input id="fRate" type="number" placeholder="Rate in ₦ per $1 (e.g. 1345)">
+    </div>
+    <div class="form-row">
+      <input id="fFee" type="text" placeholder="Fee (optional)">
+      <select id="fRegion">
+        <option value="Global">Global</option>
+        <option value="Nigeria">Nigeria</option>
+        <option value="Kenya">Kenya</option>
+        <option value="Cameroon">Cameroon</option>
+        <option value="Bangladesh">Bangladesh</option>
+        <option value="Pakistan">Pakistan</option>
+        <option value="Algeria">Algeria</option>
+        <option value="Morocco">Morocco</option>
+        <option value="Africa">Africa (general)</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <input id="fNotes" type="text" placeholder="Notes (optional)" style="flex: 1 1 100%;">
+    </div>
+    <button onclick="submitRate()">Submit Rate</button>
+    <p id="formMsg"></p>
+  </div>
+
+  <script>
+    // ---- Themed confirm prompt ----
+    function askConfirm(title, text, onYes) {
+      document.getElementById('confirmTitle').textContent = title;
+      document.getElementById('confirmText').textContent = text;
+      const dlg = document.getElementById('confirmDialog');
+      const yes = document.getElementById('confirmYes');
+      const no = document.getElementById('confirmNo');
+      const done = () => { yes.onclick = null; no.onclick = null; dlg.close(); };
+      yes.onclick = () => { done(); onYes(); };
+      no.onclick = done;
+      dlg.showModal();
+    }
+
+    // ---- Light / dark theme ----
+    function applyThemeIcon() {
+      const b = document.getElementById('themeToggle');
+      if (b) b.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+    }
+    function toggleTheme() {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('gr-theme', next); } catch (e) {}
+      applyThemeIcon();
+    }
+    applyThemeIcon();
+
+    // Decorative background: 4 currency symbols falling top to bottom, evenly spaced
+    (function createCurrencyRain() {
+      const symbols = ['$', '€', '£', '¥'];
+      const colors = ['rgba(91,33,182,0.5)', 'rgba(4,120,87,0.5)', 'rgba(29,78,216,0.5)', 'rgba(190,24,93,0.48)'];
+      const positions = [12, 38, 64, 88]; // evenly spaced across the viewport width, in vw
+      const container = document.getElementById('currencyRain');
+      symbols.forEach((sym, i) => {
+        const span = document.createElement('span');
+        span.className = 'rain-symbol';
+        span.textContent = sym;
+        span.style.left = positions[i] + 'vw';
+        span.style.fontSize = '80px';
+        span.classList.add('c' + i);
+        span.style.animationDuration = (11 + i * 2) + 's';
+        span.style.animationDelay = (i * 2.5) + 's';
+        container.appendChild(span);
+      });
+    })();
+
+    const CURRENCY_META = {
+      USD: { flag: '🇺🇸', symbol: '$' }, EUR: { flag: '🇪🇺', symbol: '€' }, GBP: { flag: '🇬🇧', symbol: '£' },
+      CAD: { flag: '🇨🇦', symbol: 'C$' }, AUD: { flag: '🇦🇺', symbol: 'A$' }, CNY: { flag: '🇨🇳', symbol: '¥' },
+      JPY: { flag: '🇯🇵', symbol: '¥' }, INR: { flag: '🇮🇳', symbol: '₹' }, KRW: { flag: '🇰🇷', symbol: '₩' },
+      SGD: { flag: '🇸🇬', symbol: 'S$' }, AED: { flag: '🇦🇪', symbol: 'AED' }, BDT: { flag: '🇧🇩', symbol: '৳' }, PKR: { flag: '🇵🇰', symbol: '₨' },
+      TRY: { flag: '🇹🇷', symbol: '₺' },
+      GHS: { flag: '🇬🇭', symbol: 'GH₵' }, KES: { flag: '🇰🇪', symbol: 'KSh' }, ZAR: { flag: '🇿🇦', symbol: 'R' }, EGP: { flag: '🇪🇬', symbol: 'E£' },
+      XAF: { flag: '🇨🇲', symbol: 'FCFA' }, DZD: { flag: '🇩🇿', symbol: 'DA' }, MAD: { flag: '🇲🇦', symbol: 'DH' },
+      NGN: { flag: '🇳🇬', symbol: '₦' }
+    };
+    const CORE = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'CNY'];
+    const ASIA_EXTRA = ['JPY', 'INR', 'KRW', 'SGD', 'AED', 'BDT', 'PKR', 'TRY'];
+    const AFRICA_EXTRA = ['GHS', 'KES', 'ZAR', 'EGP', 'XAF', 'DZD', 'MAD'];
+    const ALL_CODES = [...CORE, ...ASIA_EXTRA, ...AFRICA_EXTRA];
+    const BASE_OPTIONS = ['NGN', ...ALL_CODES];
+    const REGION_CURRENCY = {
+      Nigeria: 'NGN', Kenya: 'KES', Cameroon: 'XAF', Bangladesh: 'BDT',
+      Pakistan: 'PKR', Algeria: 'DZD', Morocco: 'MAD', Turkey: 'TRY', Lithuania: 'EUR'
+    };
+
+    let baseRates = {};
+    let liveRates = {};
+    let baseCurrency = 'USD';
+
+    function buildBaseSelect() {
+      const sel = document.getElementById('baseSelect');
+      sel.innerHTML = '';
+      BASE_OPTIONS.forEach(code => {
+        const meta = CURRENCY_META[code];
+        sel.innerHTML += `<option value="${code}">${meta.flag} ${code}</option>`;
+      });
+      sel.value = baseCurrency;
+      sel.addEventListener('change', () => {
+        baseCurrency = sel.value;
+        updateHeroDisplay();
+        updateGridDisplay();
+        applyProviderFilters();
+      });
+    }
+
+    function updateHeroDisplay() {
+      const meta = CURRENCY_META[baseCurrency];
+      document.getElementById('heroLocationFlag').textContent = meta.flag;
+      document.getElementById('heroLocationCode').textContent = baseCurrency;
+      const val = liveRates[baseCurrency];
+      if (val !== undefined) {
+        document.getElementById('heroRate').textContent = (meta.symbol || '') + val.toFixed(val > 100 ? 0 : 2);
+        document.getElementById('heroRateCaption').textContent = `Per 1 USD in ${baseCurrency}`;
+      }
+    }
+
+    function openExplorer() {
+      document.getElementById('exploreDialog').showModal();
+      document.getElementById('currencySearch').value = '';
+      filterExploreGrid('');
+      document.getElementById('currencySearch').focus();
+    }
+
+    function filterExploreGrid(term) {
+      const cards = document.querySelectorAll('#exploreGrid .currency-card');
+      cards.forEach(card => {
+        const code = card.dataset.code.toLowerCase();
+        card.style.display = code.includes(term.toLowerCase()) ? 'block' : 'none';
+      });
+    }
+
+    function buildGrid(containerId, codes) {
+      const grid = document.getElementById(containerId);
+      grid.innerHTML = '';
+      codes.forEach(code => {
+        const meta = CURRENCY_META[code];
+        const div = document.createElement('div');
+        div.className = 'currency-card';
+        div.dataset.code = code;
+        div.innerHTML = `
+          <div class="currency-flag">${meta.flag}</div>
+          <div class="currency-code">${code}</div>
+          <div class="currency-value" id="rate-${code}">--</div>
+        `;
+        grid.appendChild(div);
+      });
+    }
+
+    function buildConverterOptions() {
+      const from = document.getElementById('fromCurrency');
+      const to = document.getElementById('toCurrency');
+      [...ALL_CODES, 'NGN'].forEach(code => {
+        const meta = CURRENCY_META[code];
+        from.innerHTML += `<option value="${code}">${meta.flag} ${code}</option>`;
+        to.innerHTML += `<option value="${code}">${meta.flag} ${code}</option>`;
+      });
+      from.value = 'USD';
+      to.value = 'EUR';
+    }
+
+    function valueInBase(code) {
+      if (code === baseCurrency) return 1;
+      if (!liveRates[baseCurrency] || !liveRates[code]) return null;
+      return liveRates[baseCurrency] / liveRates[code];
+    }
+
+    function updateGridDisplay() {
+      [...CORE, ...ASIA_EXTRA, ...AFRICA_EXTRA].forEach(code => {
+        const el = document.getElementById(`rate-${code}`);
+        if (!el) return;
+        if (code === baseCurrency) { el.textContent = '1.00 (base)'; return; }
+        const val = valueInBase(code);
+        if (val === null) { el.textContent = 'N/A'; return; }
+        const prevText = el.dataset.prev ? parseFloat(el.dataset.prev) : null;
+        el.textContent = val.toFixed(val > 100 ? 0 : 2);
+        if (prevText !== null) {
+          el.classList.remove('up', 'down');
+          if (val > prevText) el.classList.add('up');
+          else if (val < prevText) el.classList.add('down');
+        }
+        el.dataset.prev = val;
+      });
+      updateTrending();
+      updateHeroDisplay();
+      updateGbpUsdSpotlight();
+      updateConverter();
+      updateCrossTable();
+    }
+
+    function updateGbpUsdSpotlight() {
+      const gbp = liveRates.GBP;
+      if (!gbp) return;
+      document.getElementById('usdInGbp').textContent = gbp.toFixed(4);
+      document.getElementById('gbpInUsd').textContent = (1 / gbp).toFixed(4);
+    }
+
+    function updateTrending() {
+      ['USD', 'EUR', 'PKR'].forEach(code => {
+        const el = document.getElementById(`trend-${code}`);
+        if (!el) return;
+        const val = ngnRateOf(code);
+        el.textContent = val !== null ? '₦' + val.toFixed(2) : '--';
+      });
+    }
+
+    function updateConverter() {
+      const amount = parseFloat(document.getElementById('amountInput').value) || 0;
+      const from = document.getElementById('fromCurrency').value;
+      const to = document.getElementById('toCurrency').value;
+      const fromVal = from === 'NGN' ? (liveRates.NGN ? liveRates.NGN / liveRates.NGN : null) : null;
+      const fromRate = ngnRateOf(from);
+      const toRate = ngnRateOf(to);
+      if (fromRate === null || toRate === null) return;
+
+      const result = (amount * fromRate) / toRate;
+      document.getElementById('converterResult').innerHTML =
+        `${amount} ${from} = <span>${result.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${to}</span>`;
+    }
+
+    // Value of 1 unit of `code` expressed in NGN, used internally for conversions
+    function ngnRateOf(code) {
+      if (code === 'NGN') return 1;
+      if (!liveRates.NGN || !liveRates[code]) return null;
+      return liveRates.NGN / liveRates[code];
+    }
+
+    function updateCrossTable() {
+      const head = document.getElementById('crossTableHead');
+      const body = document.getElementById('crossTableBody');
+      const rowCodes = [...new Set([baseCurrency, 'USD', 'EUR', 'GBP'])].slice(0, 4);
+
+      head.innerHTML = '<th>1 unit of</th>' + rowCodes.map(c => `<th>= ${c}</th>`).join('');
+      body.innerHTML = '';
+
+      rowCodes.forEach(rowCode => {
+        const tr = document.createElement('tr');
+        let cells = `<td>${CURRENCY_META[rowCode].flag} ${rowCode}</td>`;
+        rowCodes.forEach(colCode => {
+          const rowNgn = ngnRateOf(rowCode);
+          const colNgn = ngnRateOf(colCode);
+          const val = (rowNgn !== null && colNgn !== null) ? rowNgn / colNgn : null;
+          cells += `<td>${val !== null ? val.toFixed(rowCode === 'NGN' || colCode === 'NGN' ? 5 : 4) : 'N/A'}</td>`;
+        });
+        tr.innerHTML = cells;
+        body.appendChild(tr);
+      });
+    }
+
+    function fetchBaseRates() {
+      fetch('/api/currencies')
+        .then(res => res.json())
+        .then(c => {
+          if (!c.NGN) return;
+          baseRates = { ...c };
+          liveRates = { ...c };
+          if (c.updated) {
+            document.getElementById('lastUpdated').textContent =
+              'Base rate last refreshed: ' + new Date(c.updated).toLocaleTimeString() + ' • ticking live in between';
+          }
+          updateHeroDisplay();
+          updateGridDisplay();
+        })
+        .catch(err => console.log('Failed to load currencies:', err));
+    }
+
+    function tickRates() {
+      if (!baseRates.NGN) return;
+      ALL_CODES.forEach(code => {
+        if (!baseRates[code]) return;
+        const jitter = 1 + (Math.random() - 0.5) * 0.0015;
+        liveRates[code] = baseRates[code] * jitter;
+      });
+      liveRates.NGN = baseRates.NGN * (1 + (Math.random() - 0.5) * 0.0015);
+      updateGridDisplay();
+    }
+
+    buildBaseSelect();
+    buildGrid('exploreGrid', ALL_CODES);
+    buildConverterOptions();
+    fetchBaseRates();
+    setInterval(fetchBaseRates, 30 * 60 * 1000);
+    setInterval(tickRates, 2000);
+
+    document.getElementById('currencySearch').addEventListener('input', (e) => {
+      filterExploreGrid(e.target.value);
+    });
+
+    document.getElementById('amountInput').addEventListener('input', updateConverter);
+    document.getElementById('fromCurrency').addEventListener('change', updateConverter);
+    document.getElementById('toCurrency').addEventListener('change', updateConverter);
+
+    function swapCurrencies() {
+      const from = document.getElementById('fromCurrency');
+      const to = document.getElementById('toCurrency');
+      const temp = from.value;
+      from.value = to.value;
+      to.value = temp;
+      updateConverter();
+    }
+
+    let allProviders = [];
+
+    function loadProviders() {
+      fetch('/api/providers')
+        .then(res => res.json())
+        .then(data => {
+          allProviders = data;
+          applyProviderFilters();
+        });
+    }
+
+    // Provider rates are stored as "NGN per 1 USD sent". Convert that into
+    // whichever currency is currently selected as the base, so the list
+    // shows Pakistani Rupees when PKR is picked, Cedis for GHS, and so on.
+    function providerRateInBase(ngnRate) {
+      const baseNgnValue = ngnRateOf(baseCurrency); // NGN per 1 unit of baseCurrency
+      if (baseNgnValue === null) return null;
+      return ngnRate / baseNgnValue; // units of baseCurrency per 1 USD sent
+    }
+
+    function renderProviders(list) {
+      const container = document.getElementById('providerList');
+      container.innerHTML = '';
+      const sorted = [...list].sort((a, b) => b.rate - a.rate);
+      if (sorted.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:20px; grid-column: 1 / -1;">No agents match that search/region yet.</p>';
+        return;
+      }
+      const symbol = (CURRENCY_META[baseCurrency] && CURRENCY_META[baseCurrency].symbol) || baseCurrency;
+      sorted.forEach(p => {
+        const converted = providerRateInBase(p.rate);
+        const displayRate = converted === null
+          ? 'N/A'
+          : `${symbol}${converted.toFixed(converted > 100 ? 0 : 2)}`;
+
+        const div = document.createElement('div');
+        div.className = 'provider';
+        div.innerHTML = `
+          <div>
+            <div class="provider-name">${p.name} <span class="region-tag">${p.region || 'Global'}</span> ${p.submitted ? '<span class="badge">Submitted</span>' : ''}</div>
+            <div class="provider-notes">${p.notes} • ${p.fee}</div>
+          </div>
+          <div class="provider-rate">${displayRate}</div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function applyProviderFilters() {
+      const term = document.getElementById('search').value.toLowerCase();
+      const region = document.getElementById('regionFilter').value;
+      const filtered = allProviders.filter(p => {
+        const matchesTerm = p.name.toLowerCase().includes(term);
+        const matchesRegion = region === 'All' || p.region === region || p.region === 'Global';
+        return matchesTerm && matchesRegion;
+      });
+      renderProviders(filtered);
+    }
+
+    document.getElementById('search').addEventListener('input', applyProviderFilters);
+
+    const COUNTRY_OPTIONS = [
+      { value: 'All', label: 'All regions', flag: '🌐' },
+      { value: 'Global', label: 'Global agents', flag: '🌍' },
+      { value: 'Nigeria', label: 'Nigeria', flag: '🇳🇬' },
+      { value: 'Kenya', label: 'Kenya', flag: '🇰🇪' },
+      { value: 'Cameroon', label: 'Cameroon', flag: '🇨🇲' },
+      { value: 'Bangladesh', label: 'Bangladesh', flag: '🇧🇩' },
+      { value: 'Pakistan', label: 'Pakistan', flag: '🇵🇰' },
+      { value: 'Algeria', label: 'Algeria', flag: '🇩🇿' },
+      { value: 'Morocco', label: 'Morocco', flag: '🇲🇦' },
+      { value: 'Turkey', label: 'Turkey', flag: '🇹🇷' },
+      { value: 'Lithuania', label: 'Lithuania', flag: '🇱🇹' },
+      { value: 'Africa', label: 'Africa (general)', flag: '🌍' }
+    ];
+
+    function buildCountryTiles() {
+      const grid = document.getElementById('countryTileGrid');
+      grid.innerHTML = '';
+      COUNTRY_OPTIONS.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'country-tile';
+        btn.innerHTML = `<span class="country-tile-flag">${opt.flag}</span><span>${opt.label}</span>`;
+        btn.onclick = () => selectCountry(opt.value, opt.label);
+        grid.appendChild(btn);
+      });
+    }
+
+    function selectCountry(value, label) {
+      document.getElementById('regionFilter').value = value;
+      document.getElementById('selectedCountryLabel').textContent = label;
+      if (REGION_CURRENCY[value]) {
+        baseCurrency = REGION_CURRENCY[value];
+        document.getElementById('baseSelect').value = baseCurrency;
+        updateHeroDisplay();
+        updateGridDisplay();
+      }
+      applyProviderFilters();
+      document.getElementById('countryDialog').close();
+    }
+
+    buildCountryTiles();
+
+    function submitRate() {
+      const name = document.getElementById('fName').value.trim();
+      const rate = document.getElementById('fRate').value.trim();
+      const fee = document.getElementById('fFee').value.trim();
+      const notes = document.getElementById('fNotes').value.trim();
+      const region = document.getElementById('fRegion').value;
+      const msg = document.getElementById('formMsg');
+
+      if (!name || !rate) {
+        msg.textContent = 'Please enter at least an app name and rate.';
+        msg.style.color = '#dc2626';
+        return;
+      }
+
+      fetch('/api/providers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, rate, fee, notes, region })
+      })
+        .then(res => res.json())
+        .then(() => {
+          msg.textContent = 'Thanks! Your submission was added below.';
+          msg.style.color = '#16a34a';
+          document.getElementById('fName').value = '';
+          document.getElementById('fRate').value = '';
+          document.getElementById('fFee').value = '';
+          document.getElementById('fNotes').value = '';
+          loadProviders();
+        })
+        .catch(() => {
+          msg.textContent = 'Something went wrong, try again.';
+          msg.style.color = '#dc2626';
+        });
+    }
+
+    loadProviders();
+
+    // --- Accounts / auth ---
+    let currentUser = null;
+    let authToken = localStorage.getItem('authToken') || null;
+
+    function apiHeaders() {
+      return authToken
+        ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken }
+        : { 'Content-Type': 'application/json' };
+    }
+
+    function openAuthDialog() {
+      document.getElementById('authDialog').showModal();
+    }
+
+    function switchAuthTab(tab) {
+      const isLogin = tab === 'login';
+      document.getElementById('tabLogin').classList.toggle('active', isLogin);
+      document.getElementById('tabRegister').classList.toggle('active', !isLogin);
+      document.getElementById('loginForm').style.display = isLogin ? 'flex' : 'none';
+      document.getElementById('registerForm').style.display = isLogin ? 'none' : 'flex';
+      document.getElementById('authDialogTitle').textContent = isLogin ? 'Sign In' : 'Create Account';
+    }
+
+    function doLogin() {
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const msg = document.getElementById('loginMsg');
+      if (!email || !password) {
+        msg.textContent = 'Enter your email and password.';
+        msg.style.color = '#dc2626';
+        return;
+      }
+      fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Login failed');
+          return data;
+        })
+        .then(data => {
+          authToken = data.token;
+          currentUser = data.user;
+          localStorage.setItem('authToken', authToken);
+          document.getElementById('authDialog').close();
+          updateAccountUI();
+          loadMarketplace();
+        })
+        .catch(err => {
+          msg.textContent = err.message;
+          msg.style.color = '#dc2626';
+        });
+    }
+
+    function doRegister() {
+      const name = document.getElementById('regName').value.trim();
+      const email = document.getElementById('regEmail').value.trim();
+      const phone = document.getElementById('regPhone').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const msg = document.getElementById('registerMsg');
+      if (!name || !email || !phone || !password) {
+        msg.textContent = 'Please fill in every field.';
+        msg.style.color = '#dc2626';
+        return;
+      }
+      fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, password })
+      })
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Registration failed');
+          return data;
+        })
+        .then(data => {
+          authToken = data.token;
+          currentUser = data.user;
+          localStorage.setItem('authToken', authToken);
+          document.getElementById('authDialog').close();
+          updateAccountUI();
+          loadMarketplace();
+        })
+        .catch(err => {
+          msg.textContent = err.message;
+          msg.style.color = '#dc2626';
+        });
+    }
+
+    function doLogout() {
+      fetch('/api/logout', { method: 'POST', headers: apiHeaders() }).finally(() => {
+        authToken = null;
+        currentUser = null;
+        localStorage.removeItem('authToken');
+        updateAccountUI();
+        loadMarketplace();
+      });
+    }
+
+    function updateAccountUI() {
+      setTimeout(() => { if (typeof renderItems === 'function') renderItems(); }, 0);
+      const btn = document.getElementById('accountNavBtn');
+      const locked = document.getElementById('marketplaceLocked');
+      const form = document.getElementById('marketplaceForm');
+      const rLocked = document.getElementById('rentalsLocked');
+      const rForm = document.getElementById('rentalsForm');
+      const iLocked = document.getElementById('itemsLocked');
+      const iForm = document.getElementById('itemsForm');
+      const msgBtn = document.getElementById('messagesNavBtn');
+      const adminBtn = document.getElementById('adminNavBtn');
+      if (adminBtn) adminBtn.style.display = (currentUser && currentUser.canAdmin) ? 'inline-block' : 'none';
+      decorateAdminButtons();
+      if (currentUser) {
+        btn.textContent = `👋 ${currentUser.name.split(' ')[0]} (Log out)`;
+        btn.onclick = doLogout;
+        locked.style.display = 'none';
+        form.style.display = 'block';
+        rLocked.style.display = 'none';
+        rForm.style.display = 'block';
+        iLocked.style.display = 'none';
+        iForm.style.display = 'block';
+        document.getElementById('itemsPostingAsLabel').textContent = `Posting as ${currentUser.name} • 📱 ${currentUser.phone}`;
+        msgBtn.style.display = 'inline-block';
+        document.getElementById('postingAsLabel').textContent = `Posting as ${currentUser.name} • 📱 ${currentUser.phone}`;
+        document.getElementById('rentalsPostingAsLabel').textContent = `Posting as ${currentUser.name} • 📱 ${currentUser.phone}`;
+      } else {
+        btn.textContent = '👤 Sign In';
+        btn.onclick = openAuthDialog;
+        locked.style.display = 'block';
+        form.style.display = 'none';
+        rLocked.style.display = 'block';
+        rForm.style.display = 'none';
+        iLocked.style.display = 'block';
+        iForm.style.display = 'none';
+        msgBtn.style.display = 'none';
+      }
+    }
+
+    // --- Owner/admin moderation: remove any listing from the public page once admin is unlocked ---
+    function decorateAdminButtons() {
+      if (!currentUser || !currentUser.isAdmin) return;
+      ['marketplaceList', 'rentalsList', 'itemsList'].forEach(id => {
+        const box = document.getElementById(id);
+        if (!box) return;
+        box.querySelectorAll('.listing-card[data-lid]').forEach(card => {
+          if (card.dataset.owner === currentUser.id || card.querySelector('.admin-remove')) return;
+          const b = document.createElement('button');
+          b.className = 'listing-action-btn danger admin-remove';
+          b.style.marginTop = '8px';
+          b.textContent = '🛡️ Remove (admin)';
+          b.onclick = () => askConfirm('Remove this listing?', 'You are removing another user\'s listing as admin. This cannot be undone.', () =>
+            fetch(`/api/admin/listings/${card.dataset.lkind}/${card.dataset.lid}`, { method: 'DELETE', headers: apiHeaders() })
+              .then(() => { loadMarketplace(); loadRentals(); loadItems(); }));
+          card.appendChild(b);
+        });
+      });
+    }
+    ['marketplaceList', 'rentalsList', 'itemsList'].forEach(id => {
+      const box = document.getElementById(id);
+      if (box) new MutationObserver(decorateAdminButtons).observe(box, { childList: true });
+    });
+
+    function checkAuthOnLoad() {
+      if (!authToken) { updateAccountUI(); return; }
+      fetch('/api/me', { headers: apiHeaders() })
+        .then(res => {
+          if (!res.ok) throw new Error('Session expired');
+          return res.json();
+        })
+        .then(user => {
+          currentUser = user;
+          updateAccountUI();
+        })
+        .catch(() => {
+          authToken = null;
+          localStorage.removeItem('authToken');
+          updateAccountUI();
+        });
+    }
+
+    // --- Local currency marketplace ---
+    function loadMarketplace() {
+      fetch('/api/marketplace')
+        .then(res => res.json())
+        .then(renderMarketplace);
+    }
+
+    function timeAgo(isoString) {
+      const diffMs = Date.now() - new Date(isoString).getTime();
+      const mins = Math.round(diffMs / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.round(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      return `${Math.round(hrs / 24)}d ago`;
+    }
+
+    function renderMarketplace(listings) {
+      const container = document.getElementById('marketplaceList');
+      container.innerHTML = '';
+      if (!listings.length) {
+        container.innerHTML = '<p class="listing-empty">No listings yet — be the first to post what you have.</p>';
+        return;
+      }
+      listings.forEach(l => {
+        const status = l.status || 'available';
+        const isOwner = currentUser && l.ownerId === currentUser.id;
+        const div = document.createElement('div');
+        div.className = `listing-card status-${status}`;
+        div.dataset.lid = l.id; div.dataset.lkind = 'currency'; div.dataset.owner = l.ownerId;
+        const badgeText = status === 'available' ? 'Available' : status === 'taken' ? 'Taken' : 'Sold';
+
+        let actions = '';
+        if (isOwner) {
+          actions = status === 'available'
+            ? `<div class="listing-actions">
+                 <button class="listing-action-btn warn" onclick="updateListingStatus('${l.id}','taken')">✅ Mark Taken</button>
+                 <button class="listing-action-btn success" onclick="updateListingStatus('${l.id}','sold')">💰 Mark Sold</button>
+                 <button class="listing-action-btn danger" onclick="removeListing('${l.id}')">🗑️ Remove</button>
+               </div>`
+            : `<div class="listing-actions">
+                 <button class="listing-action-btn danger" onclick="removeListing('${l.id}')">🗑️ Remove</button>
+               </div>`;
+        } else if (currentUser) {
+          const summary = `${l.haveAmount} ${l.haveCurrency} → ${l.wantCurrency}`;
+          actions = `<div class="listing-actions">
+                       <button class="listing-chat-btn" onclick="openChat('currency','${l.id}','${summary.replace(/'/g, "\\'")}','${l.ownerId}','${l.posterName.replace(/'/g, "\\'")}')">💬 Chat with ${l.posterName.split(' ')[0]}</button>
+                     </div>`;
+        }
+
+        div.innerHTML = `
+          <div class="listing-swap">${l.haveAmount} ${l.haveCurrency}<span class="arrow">→</span>${l.wantCurrency}<span class="listing-status-badge">${badgeText}</span></div>
+          <div class="listing-location">📍 ${l.location} • ${timeAgo(l.postedAt)}</div>
+          <div class="listing-poster">${l.posterName}</div>
+          ${l.notes ? `<div class="listing-notes">${l.notes}</div>` : ''}
+          <div class="listing-phone">📱 ${l.phone}</div>
+          ${actions}
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function updateListingStatus(id, status) {
+      fetch(`/api/marketplace/${id}`, {
+        method: 'PATCH',
+        headers: apiHeaders(),
+        body: JSON.stringify({ status })
+      }).then(() => loadMarketplace());
+    }
+
+    function removeListing(id) {
+      askConfirm('Delete this listing?', 'This will permanently remove it. This cannot be undone.', () =>
+      fetch(`/api/marketplace/${id}`, { method: 'DELETE', headers: apiHeaders() }).then(() => loadMarketplace()));
+    }
+
+    function postListing() {
+      const haveCurrency = document.getElementById('mHaveCurrency').value.trim();
+      const haveAmount = document.getElementById('mHaveAmount').value.trim();
+      const wantCurrency = document.getElementById('mWantCurrency').value.trim();
+      const location = document.getElementById('mLocation').value.trim();
+      const notes = document.getElementById('mNotes').value.trim();
+      const msg = document.getElementById('marketplaceMsg');
+
+      if (!haveCurrency || !haveAmount || !wantCurrency || !location) {
+        msg.textContent = 'Please fill in both currencies, amount, and location.';
+        msg.style.color = '#dc2626';
+        return;
+      }
+
+      fetch('/api/marketplace', {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({ haveCurrency, haveAmount, wantCurrency, location, notes })
+      })
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Could not post listing');
+          return data;
+        })
+        .then(() => {
+          msg.textContent = 'Posted! Your listing is now visible above.';
+          msg.style.color = '#16a34a';
+          ['mHaveCurrency', 'mHaveAmount', 'mWantCurrency', 'mLocation', 'mNotes'].forEach(id => {
+            document.getElementById(id).value = '';
+          });
+          loadMarketplace();
+        })
+        .catch(err => {
+          msg.textContent = err.message;
+          msg.style.color = '#dc2626';
+        });
+    }
+
+    // --- Vehicle & bike rentals marketplace (mirrors the currency marketplace) ---
+    function loadRentals() {
+      fetch('/api/rentals')
+        .then(res => res.json())
+        .then(renderRentals);
+    }
+
+    const VEHICLE_ICONS = {
+      'Car rental': '🚗', 'Taxi service': '🚕', 'Electric bike': '🚲', 'Electric scooter': '🛴'
+    };
+
+    function renderRentals(listings) {
+      const container = document.getElementById('rentalsList');
+      container.innerHTML = '';
+      if (!listings.length) {
+        container.innerHTML = '<p class="listing-empty">No rentals listed yet — be the first to post your car, taxi service, or bike.</p>';
+        return;
+      }
+      listings.forEach(l => {
+        const status = l.status || 'available';
+        const isOwner = currentUser && l.ownerId === currentUser.id;
+        const div = document.createElement('div');
+        div.className = `listing-card status-${status === 'rented' ? 'taken' : status}`;
+        div.dataset.lid = l.id; div.dataset.lkind = 'rental'; div.dataset.owner = l.ownerId;
+        const badgeText = status === 'available' ? 'Available' : 'Rented';
+        const icon = VEHICLE_ICONS[l.vehicleType] || '🚘';
+
+        let actions = '';
+        if (isOwner) {
+          actions = status === 'available'
+            ? `<div class="listing-actions">
+                 <button class="listing-action-btn warn" onclick="updateRentalStatus('${l.id}','rented')">🔑 Mark Rented</button>
+                 <button class="listing-action-btn danger" onclick="removeRental('${l.id}')">🗑️ Remove</button>
+               </div>`
+            : `<div class="listing-actions">
+                 <button class="listing-action-btn success" onclick="updateRentalStatus('${l.id}','available')">✅ Mark Available</button>
+                 <button class="listing-action-btn danger" onclick="removeRental('${l.id}')">🗑️ Remove</button>
+               </div>`;
+        } else if (currentUser) {
+          const summary = `${l.vehicleType} — ${l.description}`;
+          actions = `<div class="listing-actions">
+                       <button class="listing-chat-btn" onclick="openChat('rental','${l.id}','${summary.replace(/'/g, "\\'")}','${l.ownerId}','${l.posterName.replace(/'/g, "\\'")}')">💬 Chat with ${l.posterName.split(' ')[0]}</button>
+                     </div>`;
+        }
+
+        div.innerHTML = `
+          <div class="listing-swap">${icon} ${l.vehicleType}<span class="listing-status-badge">${badgeText}</span></div>
+          <div class="listing-notes" style="margin-top:6px;">${l.description}</div>
+          <div class="listing-location">📍 ${l.location} • ${timeAgo(l.postedAt)}</div>
+          <div class="listing-poster">${l.posterName} • <span style="color:#16a34a; font-weight:800;">€${l.pricePerDay}/day</span></div>
+          ${l.notes ? `<div class="listing-notes">${l.notes}</div>` : ''}
+          <div class="listing-phone">📱 ${l.phone}</div>
+          ${actions}
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function updateRentalStatus(id, status) {
+      fetch(`/api/rentals/${id}`, {
+        method: 'PATCH',
+        headers: apiHeaders(),
+        body: JSON.stringify({ status })
+      }).then(() => loadRentals());
+    }
+
+    function removeRental(id) {
+      askConfirm('Delete this rental?', 'This will permanently remove it. This cannot be undone.', () =>
+      fetch(`/api/rentals/${id}`, { method: 'DELETE', headers: apiHeaders() }).then(() => loadRentals()));
+    }
+
+    function postRental() {
+      const vehicleType = document.getElementById('rVehicleType').value;
+      const description = document.getElementById('rDescription').value.trim();
+      const pricePerDay = document.getElementById('rPrice').value.trim();
+      const location = document.getElementById('rLocation').value.trim();
+      const notes = document.getElementById('rNotes').value.trim();
+      const msg = document.getElementById('rentalsMsg');
+
+      if (!description || !pricePerDay || !location) {
+        msg.textContent = 'Please fill in description, price, and location.';
+        msg.style.color = '#dc2626';
+        return;
+      }
+
+      fetch('/api/rentals', {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({ vehicleType, description, pricePerDay, location, notes })
+      })
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Could not post listing');
+          return data;
+        })
+        .then(() => {
+          msg.textContent = 'Posted! Your listing is now visible above.';
+          msg.style.color = '#16a34a';
+          ['rDescription', 'rPrice', 'rLocation', 'rNotes'].forEach(id => {
+            document.getElementById(id).value = '';
+          });
+          loadRentals();
+        })
+        .catch(err => {
+          msg.textContent = err.message;
+          msg.style.color = '#dc2626';
+        });
+    }
+
+    // --- Items & gadgets for sale (with photos) ---
+    const ITEM_CATEGORIES = ['Phones & tablets', 'Laptops & computers', 'Gaming & consoles', 'Audio & headphones', 'Cameras', 'TVs & appliances', 'Furniture & home', 'Clothing & shoes', 'Books & study', 'Sports & bikes', 'Other'];
+    const ITEM_ICONS = { 'Phones & tablets':'📱','Laptops & computers':'💻','Gaming & consoles':'🎮','Audio & headphones':'🎧','Cameras':'📷','TVs & appliances':'📺','Furniture & home':'🛋️','Clothing & shoes':'👟','Books & study':'📚','Sports & bikes':'🚴','Other':'📦' };
+    let allItems = [];
+    let pendingPhotos = [];
+
+    function esc(t) {
+      return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    (function initItemSelects() {
+      const cat = document.getElementById('iCategory');
+      const filter = document.getElementById('itemCategoryFilter');
+      filter.innerHTML = '<option value="">All categories</option>';
+      ITEM_CATEGORIES.forEach(c => {
+        cat.insertAdjacentHTML('beforeend', `<option value="${c}">${ITEM_ICONS[c]} ${c}</option>`);
+        filter.insertAdjacentHTML('beforeend', `<option value="${c}">${ITEM_ICONS[c]} ${c}</option>`);
+      });
+    })();
+
+    function loadItems() {
+      fetch('/api/items').then(r => r.json()).then(list => { allItems = list; renderItems(); }).catch(() => {});
+    }
+
+    // Shrink each photo in the browser before upload (max 1200px, JPEG) so uploads are fast
+    function shrinkImage(file) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          const max = 1200;
+          const scale = Math.min(1, max / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read that image')); };
+        img.src = url;
+      });
+    }
+
+    async function previewItemPhotos() {
+      const files = Array.from(document.getElementById('iPhotos').files).slice(0, 4);
+      const box = document.getElementById('iPhotoPreview');
+      const msg = document.getElementById('itemsMsg');
+      box.innerHTML = '';
+      pendingPhotos = [];
+      for (const f of files) {
+        try {
+          const data = await shrinkImage(f);
+          pendingPhotos.push(data);
+          const im = document.createElement('img');
+          im.src = data;
+          box.appendChild(im);
+        } catch (e) { msg.textContent = e.message; msg.style.color = '#dc2626'; }
+      }
+    }
+
+    function showPhoto(url) {
+      document.getElementById('photoDialogImg').src = url;
+      document.getElementById('photoDialog').showModal();
+    }
+
+    function renderItems() {
+      const container = document.getElementById('itemsList');
+      if (!container) return;
+      const q = document.getElementById('itemSearch').value.trim().toLowerCase();
+      const cat = document.getElementById('itemCategoryFilter').value;
+      const list = allItems.filter(l =>
+        (!cat || l.category === cat) &&
+        (!q || (l.title + ' ' + l.description + ' ' + l.category + ' ' + l.location).toLowerCase().includes(q)));
+      container.innerHTML = '';
+      if (!list.length) {
+        container.innerHTML = '<p class="listing-empty">' + (allItems.length ? 'No items match your search.' : 'No items listed yet — be the first to sell something.') + '</p>';
+        return;
+      }
+      list.forEach(l => {
+        const status = l.status || 'available';
+        const isOwner = currentUser && l.ownerId === currentUser.id;
+        const div = document.createElement('div');
+        div.className = `listing-card status-${status}`;
+        div.dataset.lid = l.id; div.dataset.lkind = 'item'; div.dataset.owner = l.ownerId;
+        const photos = l.photos || [];
+        const main = photos.length
+          ? `<img class="item-photo" src="${esc(photos[0])}" alt="${esc(l.title)}" loading="lazy" onclick="showPhoto('${esc(photos[0])}')">`
+          : `<div class="item-photo-none">${ITEM_ICONS[l.category] || '📦'}</div>`;
+        const thumbs = photos.length > 1
+          ? `<div class="item-thumbs">${photos.slice(1).map(p => `<img src="${esc(p)}" alt="" loading="lazy" onclick="showPhoto('${esc(p)}')">`).join('')}</div>` : '';
+        let actions = '';
+        if (isOwner) {
+          actions = `<div class="listing-actions">
+              ${status === 'available'
+                ? `<button class="listing-action-btn warn" onclick="updateItemStatus('${l.id}','sold')">💰 Mark Sold</button>`
+                : `<button class="listing-action-btn success" onclick="updateItemStatus('${l.id}','available')">✅ Mark Available</button>`}
+              <button class="listing-action-btn danger" onclick="removeItem('${l.id}')">🗑️ Remove</button>
+            </div>`;
+        } else if (currentUser) {
+          const summary = `${l.title} — €${l.price}`;
+          actions = `<div class="listing-actions">
+              <button class="listing-chat-btn" data-sum="${esc(summary)}" data-owner="${esc(l.ownerId)}" data-name="${esc(l.posterName)}" onclick="openChat('item','${l.id}',this.dataset.sum,this.dataset.owner,this.dataset.name)">💬 Chat with ${esc(l.posterName.split(' ')[0])}</button>
+            </div>`;
+        }
+        div.innerHTML = `
+          ${main}${thumbs}
+          <div class="listing-swap" style="margin-top:10px;">${ITEM_ICONS[l.category] || '📦'} ${esc(l.title)}<span class="listing-status-badge">${status === 'available' ? 'Available' : 'Sold'}</span></div>
+          <div class="item-tags">${esc(l.category)} • ${esc(l.condition)}</div>
+          ${l.description ? `<div class="listing-notes">${esc(l.description)}</div>` : ''}
+          <div class="listing-location">📍 ${esc(l.location)} • ${timeAgo(l.postedAt)}</div>
+          <div class="listing-poster">${esc(l.posterName)} • <span class="item-price">€${esc(l.price)}</span></div>
+          <div class="listing-phone">📱 ${esc(l.phone)}</div>
+          ${actions}`;
+        container.appendChild(div);
+      });
+    }
+
+    function updateItemStatus(id, status) {
+      fetch(`/api/items/${id}`, { method: 'PATCH', headers: apiHeaders(), body: JSON.stringify({ status }) }).then(() => loadItems());
+    }
+
+    function removeItem(id) {
+      askConfirm('Delete this item?', 'This will permanently remove it and its photos. This cannot be undone.', () =>
+        fetch(`/api/items/${id}`, { method: 'DELETE', headers: apiHeaders() }).then(() => loadItems()));
+    }
+
+    function postItem() {
+      const msg = document.getElementById('itemsMsg');
+      const body = {
+        title: document.getElementById('iTitle').value.trim(),
+        price: document.getElementById('iPrice').value.trim(),
+        category: document.getElementById('iCategory').value,
+        condition: document.getElementById('iCondition').value,
+        location: document.getElementById('iLocation').value.trim(),
+        description: document.getElementById('iDescription').value.trim(),
+        photos: pendingPhotos
+      };
+      if (!body.title || !body.price || !body.location) {
+        msg.textContent = 'Please fill in what you are selling, the price and the location.';
+        msg.style.color = '#dc2626';
+        return;
+      }
+      msg.textContent = 'Posting...'; msg.style.color = '#64748b';
+      fetch('/api/items', { method: 'POST', headers: apiHeaders(), body: JSON.stringify(body) })
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Could not post item');
+          return data;
+        })
+        .then(() => {
+          msg.textContent = 'Posted! Your item is now visible above.';
+          msg.style.color = '#16a34a';
+          ['iTitle','iPrice','iLocation','iDescription','iPhotos'].forEach(id => { document.getElementById(id).value = ''; });
+          document.getElementById('iPhotoPreview').innerHTML = '';
+          pendingPhotos = [];
+          loadItems();
+        })
+        .catch(err => { msg.textContent = err.message; msg.style.color = '#dc2626'; });
+    }
+
+    // --- Direct chat between logged-in users, scoped to one listing ---
+    let activeChat = null; // { listingType, listingId, listingSummary, otherUserId, otherName }
+    let chatPollTimer = null;
+
+    function openChat(listingType, listingId, listingSummary, otherUserId, otherName) {
+      if (!currentUser) { openAuthDialog(); return; }
+      activeChat = { listingType, listingId, listingSummary, otherUserId, otherName };
+      document.getElementById('chatDialogTitle').textContent = `💬 ${otherName} — ${listingSummary}`;
+      document.getElementById('chatDialog').showModal();
+      loadChatThread();
+      if (chatPollTimer) clearInterval(chatPollTimer);
+      chatPollTimer = setInterval(loadChatThread, 4000);
+    }
+
+    document.getElementById('chatDialog').addEventListener('close', () => {
+      if (chatPollTimer) clearInterval(chatPollTimer);
+    });
+
+    function loadChatThread() {
+      if (!activeChat) return;
+      const params = new URLSearchParams({
+        listingType: activeChat.listingType,
+        listingId: activeChat.listingId,
+        otherUserId: activeChat.otherUserId
+      });
+      fetch(`/api/messages/thread?${params}`, { headers: apiHeaders() })
+        .then(res => res.json())
+        .then(renderChatThread);
+    }
+
+    function renderChatThread(messages) {
+      const container = document.getElementById('chatThread');
+      const wasAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
+      container.innerHTML = '';
+      if (!messages.length) {
+        container.innerHTML = '<p class="chat-empty">Say hello — start the conversation.</p>';
+        return;
+      }
+      messages.forEach(m => {
+        const mine = m.fromUserId === currentUser.id;
+        const div = document.createElement('div');
+        div.className = `chat-bubble ${mine ? 'mine' : 'theirs'}`;
+        const time = new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        div.innerHTML = `${m.text}<span class="chat-time">${time}</span>`;
+        container.appendChild(div);
+      });
+      if (wasAtBottom) container.scrollTop = container.scrollHeight;
+    }
+
+    function sendChatMessage() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text || !activeChat) return;
+
+      fetch('/api/messages', {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          listingType: activeChat.listingType,
+          listingId: activeChat.listingId,
+          listingSummary: activeChat.listingSummary,
+          toUserId: activeChat.otherUserId,
+          text
+        })
+      })
+        .then(res => res.json())
+        .then(() => {
+          input.value = '';
+          loadChatThread();
+        });
+    }
+
+    document.getElementById('chatInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendChatMessage();
+    });
+
+    // --- Messages inbox ---
+    function openInbox() {
+      if (!currentUser) { openAuthDialog(); return; }
+      document.getElementById('inboxDialog').showModal();
+      loadInbox();
+    }
+
+    function loadInbox() {
+      fetch('/api/conversations', { headers: apiHeaders() })
+        .then(res => res.json())
+        .then(renderInbox);
+    }
+
+    function renderInbox(conversations) {
+      const container = document.getElementById('inboxList');
+      container.innerHTML = '';
+      if (!conversations.length) {
+        container.innerHTML = '<p class="inbox-empty">No conversations yet — chat with someone from a listing to start one.</p>';
+        return;
+      }
+      conversations.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'inbox-item';
+        div.onclick = () => {
+          document.getElementById('inboxDialog').close();
+          openChat(c.listingType, c.listingId, c.listingSummary, c.otherUserId, c.otherName);
+        };
+        div.innerHTML = `
+          <div class="inbox-top">
+            <span>${c.otherName}</span>
+            <span class="inbox-time">${timeAgo(c.lastSentAt)}</span>
+          </div>
+          <div class="inbox-preview">${c.listingSummary} — ${c.lastText}</div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    checkAuthOnLoad();
+    loadMarketplace();
+    loadRentals();
+    loadItems();
+
+    // --- Ask & Explore: keyword-matched smart search to real official sites ---
+    const EXPLORE_KB = [
+      { keywords: ['nigeria', 'naira', 'ngn', 'cbn'], title: 'Central Bank of Nigeria', desc: 'Official CBN rates & monetary policy', url: 'https://www.cbn.gov.ng' },
+      { keywords: ['ghana', 'cedi', 'ghs'], title: 'Bank of Ghana', desc: 'Official central bank of Ghana', url: 'https://www.bog.gov.gh' },
+      { keywords: ['kenya', 'shilling', 'kes'], title: 'Central Bank of Kenya', desc: 'Official central bank of Kenya', url: 'https://www.centralbank.go.ke' },
+      { keywords: ['pakistan', 'rupee', 'pkr'], title: 'State Bank of Pakistan', desc: 'Official central bank of Pakistan', url: 'https://www.sbp.org.pk' },
+      { keywords: ['bangladesh', 'taka', 'bdt'], title: 'Bangladesh Bank', desc: 'Official central bank of Bangladesh', url: 'https://www.bb.org.bd' },
+      { keywords: ['algeria', 'dinar', 'dzd'], title: 'Bank of Algeria', desc: 'Official central bank of Algeria', url: 'https://www.bank-of-algeria.dz' },
+      { keywords: ['morocco', 'dirham', 'mad'], title: 'Bank Al-Maghrib', desc: 'Official central bank of Morocco', url: 'https://www.bkam.ma' },
+      { keywords: ['lemfi'], title: 'LemFi', desc: 'Send money to Nigeria and more from the UK/US', url: 'https://www.lemfi.com' },
+      { keywords: ['wise', 'transferwise'], title: 'Wise', desc: 'Transparent international money transfers', url: 'https://wise.com' },
+      { keywords: ['worldremit'], title: 'WorldRemit', desc: 'Send money to 130+ countries', url: 'https://www.worldremit.com' },
+      { keywords: ['moneygram'], title: 'MoneyGram', desc: 'Global cash pickup network', url: 'https://www.moneygram.com' },
+      { keywords: ['western union', 'westernunion'], title: 'Western Union', desc: 'One of the largest global remittance networks', url: 'https://www.westernunion.com' },
+      { keywords: ['remitly'], title: 'Remitly', desc: 'Popular for South Asia transfer corridors', url: 'https://www.remitly.com' },
+      { keywords: ['xoom', 'paypal'], title: 'Xoom (a PayPal service)', desc: 'Fast digital money transfers', url: 'https://www.xoom.com' },
+      { keywords: ['taptap', 'tap tap send'], title: 'Taptap Send', desc: 'Low-fee transfers to Africa & Asia', url: 'https://www.taptapsend.com' },
+      { keywords: ['ria'], title: 'Ria Money Transfer', desc: 'Wide agent network across Africa & Asia', url: 'https://www.riamoneytransfer.com' },
+      { keywords: ['small world'], title: 'Small World', desc: 'Remittances to Algeria, Morocco & South Asia', url: 'https://www.smallworldfs.com' },
+      { keywords: ['nala'], title: 'Nala', desc: 'Transfers from Europe to East Africa', url: 'https://www.nala.money' },
+      { keywords: ['chipper', 'chipper cash'], title: 'Chipper Cash', desc: 'Cross-border transfers within Africa', url: 'https://www.chippercash.com' },
+      { keywords: ['sendwave'], title: 'Sendwave', desc: 'Mobile-first transfers to Africa', url: 'https://www.sendwave.com' },
+      { keywords: ['xe', 'converter', 'exchange rate'], title: 'XE Currency Converter', desc: 'General-purpose live currency conversion', url: 'https://www.xe.com' },
+      { keywords: ['imf', 'exchange rate data', 'statistics'], title: 'IMF Exchange Rate Data', desc: 'Official global exchange rate statistics', url: 'https://www.imf.org' }
+    ];
+
+    function runExploreSearch() {
+      const query = document.getElementById('exploreQuery').value.trim().toLowerCase();
+      const results = document.getElementById('exploreResults');
+      results.innerHTML = '';
+      if (!query) return;
+
+      const matches = EXPLORE_KB
+        .map(entry => ({
+          entry,
+          score: entry.keywords.filter(k => query.includes(k) || k.includes(query)).length
+        }))
+        .filter(m => m.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+
+      if (matches.length === 0) {
+        results.innerHTML = `
+          <p class="explore-empty">No direct match — try XE.com for general currency lookups.</p>
+          <div class="explore-result-card">
+            <div class="explore-result-text">
+              <span class="rtitle">XE Currency Converter</span>
+              <span class="rdesc">General-purpose live currency conversion</span>
+            </div>
+            <a class="explore-go-link" href="https://www.xe.com" target="_blank" rel="noopener">Visit →</a>
+          </div>
+        `;
+        return;
+      }
+
+      matches.forEach(({ entry }) => {
+        const div = document.createElement('div');
+        div.className = 'explore-result-card';
+        div.innerHTML = `
+          <div class="explore-result-text">
+            <span class="rtitle">${entry.title}</span>
+            <span class="rdesc">${entry.desc}</span>
+          </div>
+          <a class="explore-go-link" href="${entry.url}" target="_blank" rel="noopener">Visit →</a>
+        `;
+        results.appendChild(div);
+      });
+    }
+
+    document.getElementById('exploreQuery').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') runExploreSearch();
+    });
+  </script>
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <img src="favicon.svg" alt="GlobalRate logo" class="footer-logo">
+      <span class="footer-name">GlobalRate</span>
+    </div>
+    <p class="footer-tag">Live rates · local marketplace · built for people on the move</p>
+    <a class="footer-contact" href="mailto:admin@globalrate.space">✉️ admin@globalrate.space</a>
+    <p class="footer-copy">© <span id="footerYear"></span> GlobalRate — built with ❤️ by <strong>MightSmith</strong></p>
+  </footer>
+  <script>document.getElementById('footerYear').textContent = new Date().getFullYear();</script>
+</body>
+</html>

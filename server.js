@@ -1,0 +1,705 @@
+require('dotenv').config();
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'db.json');
+
+app.use(express.static('public'));
+// Uploaded item photos live here (put it on a persistent disk in production via UPLOADS_DIR)
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(path.dirname(process.env.DB_PATH || path.join(__dirname, 'data', 'db.json')), 'uploads');
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+app.use('/uploads', express.static(UPLOADS_DIR, { maxAge: '7d' }));
+app.use('/api/admin/import', express.json({ limit: '120mb' }));
+app.use(express.json({ limit: '15mb' }));
+
+// --- Email setup: sends through Zoho Mail (globalrate.space), with Gmail as a fallback ---
+let mailer = null;
+let mailFromAddress = null;
+
+if (process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
+  const smtpHost = process.env.SMTP_HOST || 'smtppro.zoho.eu';
+  const smtpPort = Number(process.env.SMTP_PORT) || 465;
+  mailer = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD }
+  });
+  mailFromAddress = process.env.SMTP_USER;
+  console.log(`Email sending is configured (${smtpHost}).`);
+} else if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+  mailer = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD }
+  });
+  mailFromAddress = process.env.GMAIL_USER;
+  console.log('Email sending is configured (Gmail).');
+} else {
+  console.log('No email credentials found in .env — welcome emails will be skipped.');
+}
+
+// Test the login right at startup so any problem shows up immediately
+if (mailer) {
+  mailer.verify()
+    .then(() => console.log('Mail server login OK.'))
+    .catch(err => console.log('Mail server login FAILED:', err.message));
+}
+
+async function sendWelcomeEmail(user) {
+  if (!mailer) return;
+  try {
+    await mailer.sendMail({
+      from: `"Admin" <${mailFromAddress}>`,
+      to: user.email,
+      subject: 'Welcome to GlobalRate!',
+      text: `Hi ${user.name},\n\nYour GlobalRate account is ready. You can now post and manage listings in the Local Currency Marketplace and the Vehicle & Bike Rentals board.\n\n— The GlobalRate team`,
+      html: `<p>Hi ${user.name},</p><p>Your GlobalRate account is ready. You can now post and manage listings in the Local Currency Marketplace and the Vehicle & Bike Rentals board.</p><p>— The GlobalRate team</p>`
+    });
+    console.log(`Welcome email sent to ${user.email}`);
+  } catch (err) {
+    console.log('Could not send welcome email:', err.message);
+  }
+}
+
+// --- Simple JSON-file database (persists across restarts) ---
+function loadDB() {
+  if (!fs.existsSync(DB_PATH)) {
+    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+    const initial = { users: [], marketplace: [], rentals: [], items: [], messages: [], activity: [], stats: { visits: {} } };
+    fs.writeFileSync(DB_PATH, JSON.stringify(initial, null, 2));
+    return initial;
+  }
+  const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+  // Fill in any new sections for databases created before this update
+  data.users = data.users || [];
+  data.marketplace = data.marketplace || [];
+  data.rentals = data.rentals || [];
+  data.items = data.items || [];
+  data.activity = data.activity || [];
+  data.stats = data.stats || { visits: {} };
+  data.stats.visits = data.stats.visits || {};
+  data.messages = data.messages || [];
+  return data;
+}
+function saveDB() {
+  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+}
+let db = loadDB();
+
+// In-memory session tokens — resets on server restart, users just log back in
+let sessions = {};
+
+function authMiddleware(req, res, next) {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  const userId = sessions[token];
+  const user = userId && db.users.find(u => u.id === userId);
+  if (!user) return res.status(401).json({ error: 'Please log in to continue' });
+  req.user = user;
+  next();
+}
+
+
+// ---------------------------------------------------------------------------
+// Admin / owner tools
+//  - ADMIN_EMAILS : comma-separated list of emails allowed to open the admin panel
+//  - ADMIN_KEY    : secret passphrase (set on the host) you type once to unlock admin powers
+// ---------------------------------------------------------------------------
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+const ADMIN_KEY = process.env.ADMIN_KEY || '';
+const adminTokens = new Set();          // login tokens that have been unlocked with the admin key
+const adminFailures = {};               // userId -> { count, until }
+const startedAt = Date.now();
+
+function tokenOf(req) { return (req.headers.authorization || '').replace('Bearer ', ''); }
+function canAdmin(user) { return !!user && ADMIN_EMAILS.includes(user.email.toLowerCase()); }
+function isAdminReq(req) { return canAdmin(req.user) && adminTokens.has(tokenOf(req)); }
+function publicUser(user, req) {
+  return { id: user.id, name: user.name, phone: user.phone, email: user.email,
+           canAdmin: canAdmin(user), isAdmin: req ? isAdminReq(req) : false };
+}
+function adminMiddleware(req, res, next) {
+  authMiddleware(req, res, () => {
+    if (!isAdminReq(req)) return res.status(403).json({ error: 'Admin access required' });
+    next();
+  });
+}
+
+// Activity log (kept to the last 1000 events) — this is what you monitor in the admin panel
+function logEvent(type, detail, user) {
+  db.activity.unshift({
+    at: new Date().toISOString(), type, detail: detail || '',
+    userId: user ? user.id : null, userName: user ? user.name : null
+  });
+  if (db.activity.length > 1000) db.activity.length = 1000;
+}
+
+// Count daily page visits (in memory, flushed to disk every few minutes)
+let statsDirty = false;
+app.use((req, res, next) => {
+  if (req.method === 'GET' && (req.path === '/' || req.path === '/index.html')) {
+    const day = new Date().toISOString().slice(0, 10);
+    db.stats.visits[day] = (db.stats.visits[day] || 0) + 1;
+    statsDirty = true;
+  }
+  next();
+});
+setInterval(() => { if (statsDirty) { statsDirty = false; saveDB(); } }, 5 * 60 * 1000);
+
+// --- Historical NGN official vs parallel rates ---
+let rates = [
+  { date: '2026-09-20', official: 1325, parallel: 1385 },
+  { date: '2026-09-21', official: 1326, parallel: 1387 },
+  { date: '2026-09-22', official: 1327, parallel: 1388 },
+  { date: '2026-09-23', official: 1328, parallel: 1389 },
+  { date: '2026-09-24', official: 1328, parallel: 1390 },
+  { date: '2026-09-25', official: 1329, parallel: 1390 },
+  { date: '2026-09-26', official: 1329.44, parallel: 1390 }
+];
+
+let providers = [
+  { name: 'LemFi', rate: 1345, fee: 'No transfer fee', notes: 'Popular for UK/US to Nigeria transfers', region: 'Nigeria', submitted: false },
+  { name: 'Nala', rate: 1340, fee: 'Low fixed fee', notes: 'Strong for Europe to East Africa transfers', region: 'Kenya', submitted: false },
+  { name: 'Chipper Cash', rate: 1335, fee: 'Free for small amounts', notes: 'Good for cross-border transfers within Africa', region: 'Africa', submitted: false },
+  { name: 'Wise', rate: 1330, fee: 'Small % fee', notes: 'Transparent fee breakdown, widely trusted worldwide', region: 'Global', submitted: false },
+  { name: 'Sendwave', rate: 1338, fee: 'No fee', notes: 'Fast delivery, mobile-first, strong in West & East Africa', region: 'Africa', submitted: false },
+  { name: 'WorldRemit', rate: 1332, fee: 'Varies by corridor', notes: 'Covers 130+ countries including Cameroon, Bangladesh, Pakistan', region: 'Global', submitted: false },
+  { name: 'MoneyGram', rate: 1310, fee: 'Cash pickup fee applies', notes: 'One of the largest physical agent networks worldwide', region: 'Global', submitted: false },
+  { name: 'Western Union', rate: 1305, fee: 'Fee varies by method', notes: 'Extensive cash pickup coverage across Africa and Asia', region: 'Global', submitted: false },
+  { name: 'Remitly', rate: 1336, fee: 'Fee varies by speed', notes: 'Popular for South Asia (Pakistan, Bangladesh) corridors', region: 'Pakistan', submitted: false },
+  { name: 'Xoom (PayPal)', rate: 1328, fee: 'Small fixed fee', notes: 'Fast digital transfers, strong presence in South Asia', region: 'Bangladesh', submitted: false },
+  { name: 'Taptap Send', rate: 1342, fee: 'Low fixed fee', notes: 'Focused corridors into Cameroon, Ghana, and Bangladesh', region: 'Cameroon', submitted: false },
+  { name: 'Ria Money Transfer', rate: 1315, fee: 'Varies by destination', notes: 'Large pickup network across Algeria and Morocco', region: 'Morocco', submitted: false },
+  { name: 'Small World', rate: 1320, fee: 'Varies by corridor', notes: 'Specializes in remittances to Algeria, Morocco, and South Asia', region: 'Algeria', submitted: false }
+];
+
+const CORE = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'CNY'];
+const ASIA_EXTRA = ['JPY', 'INR', 'KRW', 'SGD', 'AED', 'BDT', 'PKR', 'TRY'];
+const AFRICA_EXTRA = ['GHS', 'KES', 'ZAR', 'EGP', 'XAF', 'DZD', 'MAD'];
+const TRACKED = [...CORE, ...ASIA_EXTRA, ...AFRICA_EXTRA, 'NGN'];
+
+let liveCurrencies = { updated: null };
+
+async function fetchLiveRates() {
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD');
+    const data = await res.json();
+    if (data.rates) {
+      const snapshot = { updated: new Date().toISOString() };
+      TRACKED.forEach(code => {
+        if (data.rates[code] !== undefined) snapshot[code] = data.rates[code];
+      });
+      liveCurrencies = snapshot;
+
+      const today = new Date().toISOString().split('T')[0];
+      const todayEntry = rates.find(r => r.date === today);
+      if (todayEntry) {
+        todayEntry.official = data.rates.NGN;
+      } else {
+        const lastParallel = rates[rates.length - 1].parallel;
+        rates.push({ date: today, official: data.rates.NGN, parallel: lastParallel });
+      }
+      console.log(`Updated live rates: 1 USD = ${data.rates.NGN} NGN`);
+    }
+  } catch (err) {
+    console.log('Could not fetch live rates, keeping last known values:', err.message);
+  }
+}
+fetchLiveRates();
+setInterval(fetchLiveRates, 30 * 60 * 1000);
+
+app.get('/api/rates', (req, res) => res.json(rates));
+app.get('/api/currencies', (req, res) => res.json(liveCurrencies));
+app.get('/api/providers', (req, res) => res.json(providers));
+
+app.post('/api/providers', (req, res) => {
+  const { name, rate, fee, notes, region } = req.body;
+  if (!name || !rate) return res.status(400).json({ error: 'Name and rate are required' });
+  const newEntry = {
+    name: name.trim(),
+    rate: Number(rate),
+    fee: fee ? fee.trim() : 'Not specified',
+    notes: notes ? notes.trim() : 'User submitted',
+    region: region ? region.trim() : 'Global',
+    submitted: true
+  };
+  providers.push(newEntry);
+  res.status(201).json(newEntry);
+});
+
+// --- Accounts ---
+app.post('/api/register', async (req, res) => {
+  const { name, email, phone, password } = req.body;
+  if (!name || !email || !phone || !password) {
+    return res.status(400).json({ error: 'Name, email, phone, and password are required' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+  if (db.users.find(u => u.email.toLowerCase() === email.trim().toLowerCase())) {
+    return res.status(409).json({ error: 'An account with that email already exists' });
+  }
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = {
+    id: Date.now().toString(),
+    name: name.trim(),
+    email: email.trim().toLowerCase(),
+    phone: phone.trim(),
+    passwordHash,
+    createdAt: new Date().toISOString()
+  };
+  db.users.push(user);
+  saveDB();
+  sendWelcomeEmail(user);
+
+  const token = crypto.randomBytes(24).toString('hex');
+  sessions[token] = user.id;
+  logEvent('register', user.email, user);
+  saveDB();
+  res.status(201).json({ token, user: publicUser(user) });
+});
+
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body;
+  const user = db.users.find(u => u.email.toLowerCase() === (email || '').trim().toLowerCase());
+  if (!user) { logEvent('login_failed', 'unknown email: ' + String(email || '').slice(0, 60)); return res.status(401).json({ error: 'Invalid email or password' }); }
+  const match = await bcrypt.compare(password || '', user.passwordHash);
+  if (!match) { logEvent('login_failed', 'wrong password: ' + user.email, user); return res.status(401).json({ error: 'Invalid email or password' }); }
+
+  const token = crypto.randomBytes(24).toString('hex');
+  sessions[token] = user.id;
+  logEvent('login', user.email, user);
+  saveDB();
+  res.json({ token, user: publicUser(user) });
+});
+
+app.get('/api/me', authMiddleware, (req, res) => {
+  res.json(publicUser(req.user, req));
+});
+
+app.post('/api/logout', authMiddleware, (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  delete sessions[token];
+  adminTokens.delete(token);
+  res.status(204).end();
+});
+
+// --- Local currency marketplace (posting requires login; browsing is open) ---
+app.get('/api/marketplace', (req, res) => res.json(db.marketplace));
+
+app.post('/api/marketplace', authMiddleware, (req, res) => {
+  const { haveCurrency, haveAmount, wantCurrency, location, notes } = req.body;
+  if (!haveCurrency || !haveAmount || !wantCurrency || !location) {
+    return res.status(400).json({ error: 'Currencies, amount, and location are required' });
+  }
+  const listing = {
+    id: Date.now().toString(),
+    ownerId: req.user.id,
+    posterName: req.user.name,
+    phone: req.user.phone,
+    haveCurrency: haveCurrency.trim().toUpperCase(),
+    haveAmount: Number(haveAmount),
+    wantCurrency: wantCurrency.trim().toUpperCase(),
+    location: location.trim(),
+    notes: notes ? notes.trim() : '',
+    status: 'available',
+    postedAt: new Date().toISOString()
+  };
+  db.marketplace.unshift(listing);
+  logEvent('marketplace_posted', `${listing.haveAmount} ${listing.haveCurrency} → ${listing.wantCurrency} (${listing.location})`, req.user);
+  saveDB();
+  res.status(201).json(listing);
+});
+
+app.patch('/api/marketplace/:id', authMiddleware, (req, res) => {
+  const listing = db.marketplace.find(l => l.id === req.params.id);
+  if (!listing) return res.status(404).json({ error: 'Listing not found' });
+  if (listing.ownerId !== req.user.id) return res.status(403).json({ error: 'You can only update your own listings' });
+  const { status } = req.body;
+  if (!['available', 'taken', 'sold'].includes(status)) {
+    return res.status(400).json({ error: 'Status must be available, taken, or sold' });
+  }
+  listing.status = status;
+  saveDB();
+  res.json(listing);
+});
+
+app.delete('/api/marketplace/:id', authMiddleware, (req, res) => {
+  const idx = db.marketplace.findIndex(l => l.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Listing not found' });
+  if (db.marketplace[idx].ownerId !== req.user.id && !isAdminReq(req)) return res.status(403).json({ error: 'You can only remove your own listings' });
+  logEvent('marketplace_deleted', db.marketplace[idx].title || db.marketplace[idx].description || db.marketplace[idx].haveCurrency || '', req.user);
+  db.marketplace.splice(idx, 1);
+  saveDB();
+  res.status(204).end();
+});
+
+// --- Vehicle & bike rentals marketplace (same pattern as currency marketplace) ---
+app.get('/api/rentals', (req, res) => res.json(db.rentals));
+
+app.post('/api/rentals', authMiddleware, (req, res) => {
+  const { vehicleType, description, pricePerDay, location, notes } = req.body;
+  if (!vehicleType || !description || !pricePerDay || !location) {
+    return res.status(400).json({ error: 'Vehicle type, description, price, and location are required' });
+  }
+  const listing = {
+    id: Date.now().toString(),
+    ownerId: req.user.id,
+    posterName: req.user.name,
+    phone: req.user.phone,
+    vehicleType: vehicleType.trim(),
+    description: description.trim(),
+    pricePerDay: Number(pricePerDay),
+    location: location.trim(),
+    notes: notes ? notes.trim() : '',
+    status: 'available',
+    postedAt: new Date().toISOString()
+  };
+  db.rentals.unshift(listing);
+  logEvent('rentals_posted', `${listing.vehicleType}: ${listing.description} (${listing.location})`, req.user);
+  saveDB();
+  res.status(201).json(listing);
+});
+
+app.patch('/api/rentals/:id', authMiddleware, (req, res) => {
+  const listing = db.rentals.find(l => l.id === req.params.id);
+  if (!listing) return res.status(404).json({ error: 'Listing not found' });
+  if (listing.ownerId !== req.user.id) return res.status(403).json({ error: 'You can only update your own listings' });
+  const { status } = req.body;
+  if (!['available', 'rented'].includes(status)) {
+    return res.status(400).json({ error: 'Status must be available or rented' });
+  }
+  listing.status = status;
+  saveDB();
+  res.json(listing);
+});
+
+app.delete('/api/rentals/:id', authMiddleware, (req, res) => {
+  const idx = db.rentals.findIndex(l => l.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Listing not found' });
+  if (db.rentals[idx].ownerId !== req.user.id && !isAdminReq(req)) return res.status(403).json({ error: 'You can only remove your own listings' });
+  logEvent('rentals_deleted', db.rentals[idx].title || db.rentals[idx].description || db.rentals[idx].haveCurrency || '', req.user);
+  db.rentals.splice(idx, 1);
+  saveDB();
+  res.status(204).end();
+});
+
+// --- Items & gadgets for sale (with photos) ---
+const ITEM_CATEGORIES = ['Phones & tablets', 'Laptops & computers', 'Gaming & consoles', 'Audio & headphones', 'Cameras', 'TVs & appliances', 'Furniture & home', 'Clothing & shoes', 'Books & study', 'Sports & bikes', 'Other'];
+const MAX_PHOTOS = 4;
+
+function saveItemPhotos(photos) {
+  const urls = [];
+  for (const dataUrl of (Array.isArray(photos) ? photos : []).slice(0, MAX_PHOTOS)) {
+    const m = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl || '');
+    if (!m) continue;
+    const buf = Buffer.from(m[2], 'base64');
+    if (buf.length > 2 * 1024 * 1024) continue; // 2 MB max per photo (browser already shrinks them)
+    const name = crypto.randomBytes(12).toString('hex') + '.' + (m[1] === 'jpeg' ? 'jpg' : m[1]);
+    fs.writeFileSync(path.join(UPLOADS_DIR, name), buf);
+    urls.push('/uploads/' + name);
+  }
+  return urls;
+}
+function deletePhotoFiles(urls) {
+  (urls || []).forEach(u => {
+    const file = path.join(UPLOADS_DIR, path.basename(u));
+    fs.unlink(file, () => {});
+  });
+}
+
+app.get('/api/items', (req, res) => res.json(db.items));
+
+app.post('/api/items', authMiddleware, (req, res) => {
+  const { title, category, price, condition, location, description, photos } = req.body;
+  if (!title || !price || !location) {
+    return res.status(400).json({ error: 'Title, price and location are required' });
+  }
+  if (!(Number(price) >= 0)) return res.status(400).json({ error: 'Price must be a number' });
+  const listing = {
+    id: Date.now().toString(),
+    ownerId: req.user.id,
+    posterName: req.user.name,
+    phone: req.user.phone,
+    title: String(title).trim().slice(0, 100),
+    category: ITEM_CATEGORIES.includes(category) ? category : 'Other',
+    price: Number(price),
+    condition: ['New', 'Like new', 'Good', 'Used'].includes(condition) ? condition : 'Used',
+    location: String(location).trim().slice(0, 100),
+    description: description ? String(description).trim().slice(0, 600) : '',
+    photos: saveItemPhotos(photos),
+    status: 'available',
+    postedAt: new Date().toISOString()
+  };
+  db.items.unshift(listing);
+  logEvent('items_posted', `${listing.title} — €${listing.price} (${listing.photos.length} photos)`, req.user);
+  saveDB();
+  res.status(201).json(listing);
+});
+
+app.patch('/api/items/:id', authMiddleware, (req, res) => {
+  const listing = db.items.find(l => l.id === req.params.id);
+  if (!listing) return res.status(404).json({ error: 'Listing not found' });
+  if (listing.ownerId !== req.user.id) return res.status(403).json({ error: 'You can only update your own listings' });
+  if (!['available', 'sold'].includes(req.body.status)) {
+    return res.status(400).json({ error: 'Status must be available or sold' });
+  }
+  listing.status = req.body.status;
+  saveDB();
+  res.json(listing);
+});
+
+app.delete('/api/items/:id', authMiddleware, (req, res) => {
+  const idx = db.items.findIndex(l => l.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Listing not found' });
+  if (db.items[idx].ownerId !== req.user.id && !isAdminReq(req)) return res.status(403).json({ error: 'You can only remove your own listings' });
+  logEvent('items_deleted', db.items[idx].title || db.items[idx].description || db.items[idx].haveCurrency || '', req.user);
+  deletePhotoFiles(db.items[idx].photos);
+  db.items.splice(idx, 1);
+  saveDB();
+  res.status(204).end();
+});
+
+// ---------------------------------------------------------------------------
+// Admin API (all routes need a logged-in admin who has entered ADMIN_KEY)
+// ---------------------------------------------------------------------------
+const LISTING_TYPES = { currency: 'marketplace', rental: 'rentals', item: 'items' };
+
+app.post('/api/admin/unlock', authMiddleware, (req, res) => {
+  if (!canAdmin(req.user) || !ADMIN_KEY) {
+    return res.status(403).json({ error: 'This account is not an admin (check ADMIN_EMAILS and ADMIN_KEY on the server).' });
+  }
+  const f = adminFailures[req.user.id] || { count: 0, until: 0 };
+  if (f.until > Date.now()) return res.status(429).json({ error: 'Too many wrong attempts. Try again in a few minutes.' });
+  const given = Buffer.from(String(req.body.key || ''));
+  const real = Buffer.from(ADMIN_KEY);
+  const ok = given.length === real.length && crypto.timingSafeEqual(given, real);
+  if (!ok) {
+    f.count += 1;
+    if (f.count >= 5) { f.until = Date.now() + 15 * 60 * 1000; f.count = 0; }
+    adminFailures[req.user.id] = f;
+    logEvent('admin_unlock_failed', req.user.email, req.user);
+    return res.status(401).json({ error: 'Wrong admin key' });
+  }
+  delete adminFailures[req.user.id];
+  adminTokens.add(tokenOf(req));
+  logEvent('admin_unlocked', req.user.email, req.user);
+  saveDB();
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/overview', adminMiddleware, (req, res) => {
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    days.push({
+      day: d,
+      signups: db.users.filter(u => (u.createdAt || '').slice(0, 10) === d).length,
+      visits: db.stats.visits[d] || 0
+    });
+  }
+  const count = (arr, st) => arr.filter(l => l.status === st).length;
+  let uploadFiles = 0;
+  try { uploadFiles = fs.readdirSync(UPLOADS_DIR).length; } catch (e) {}
+  let dbBytes = 0;
+  try { dbBytes = fs.statSync(DB_PATH).size; } catch (e) {}
+  res.json({
+    totals: {
+      users: db.users.length,
+      currencyListings: db.marketplace.length,
+      rentalListings: db.rentals.length,
+      itemListings: db.items.length,
+      messages: db.messages.length,
+      photos: uploadFiles,
+      activeSessions: Object.keys(sessions).length
+    },
+    status: {
+      currencyAvailable: count(db.marketplace, 'available'),
+      rentalsAvailable: count(db.rentals, 'available'),
+      itemsAvailable: count(db.items, 'available'),
+      itemsSold: count(db.items, 'sold')
+    },
+    days,
+    server: {
+      uptimeMinutes: Math.round((Date.now() - startedAt) / 60000),
+      startedAt: new Date(startedAt).toISOString(),
+      emailConfigured: !!mailer,
+      databasePath: DB_PATH,
+      databaseKB: Math.round(dbBytes / 1024),
+      uploadsPath: UPLOADS_DIR,
+      node: process.version,
+      persistentStorageHint: DB_PATH.startsWith('/var/data') || !!process.env.DB_PATH
+    },
+    activity: db.activity.slice(0, 150)
+  });
+});
+
+app.get('/api/admin/users', adminMiddleware, (req, res) => {
+  res.json(db.users.map(u => ({
+    id: u.id, name: u.name, email: u.email, phone: u.phone, createdAt: u.createdAt,
+    isAdmin: ADMIN_EMAILS.includes(u.email.toLowerCase()),
+    listings: db.marketplace.filter(l => l.ownerId === u.id).length +
+              db.rentals.filter(l => l.ownerId === u.id).length +
+              db.items.filter(l => l.ownerId === u.id).length
+  })));
+});
+
+app.delete('/api/admin/users/:id', adminMiddleware, (req, res) => {
+  const user = db.users.find(u => u.id === req.params.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (ADMIN_EMAILS.includes(user.email.toLowerCase())) return res.status(400).json({ error: 'Admin accounts cannot be deleted here' });
+  db.items.filter(l => l.ownerId === user.id).forEach(l => deletePhotoFiles(l.photos));
+  db.marketplace = db.marketplace.filter(l => l.ownerId !== user.id);
+  db.rentals = db.rentals.filter(l => l.ownerId !== user.id);
+  db.items = db.items.filter(l => l.ownerId !== user.id);
+  db.messages = db.messages.filter(m => m.fromUserId !== user.id && m.toUserId !== user.id);
+  db.users = db.users.filter(u => u.id !== user.id);
+  Object.keys(sessions).forEach(t => { if (sessions[t] === user.id) { delete sessions[t]; adminTokens.delete(t); } });
+  logEvent('user_deleted_by_admin', user.email, req.user);
+  saveDB();
+  res.status(204).end();
+});
+
+app.get('/api/admin/listings', adminMiddleware, (req, res) => {
+  const tag = (arr, type) => arr.map(l => ({ ...l, type }));
+  const all = [...tag(db.marketplace, 'currency'), ...tag(db.rentals, 'rental'), ...tag(db.items, 'item')]
+    .sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt));
+  res.json(all);
+});
+
+app.delete('/api/admin/listings/:type/:id', adminMiddleware, (req, res) => {
+  const coll = LISTING_TYPES[req.params.type];
+  if (!coll) return res.status(400).json({ error: 'Unknown listing type' });
+  const idx = db[coll].findIndex(l => l.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Listing not found' });
+  const l = db[coll][idx];
+  deletePhotoFiles(l.photos);
+  db[coll].splice(idx, 1);
+  logEvent('listing_removed_by_admin', `${req.params.type}: ${l.title || l.description || l.haveCurrency || l.id} (by ${l.posterName})`, req.user);
+  saveDB();
+  res.status(204).end();
+});
+
+// Backup: download everything (database + photos) as one JSON file
+app.get('/api/admin/export', adminMiddleware, (req, res) => {
+  const photos = {};
+  try {
+    fs.readdirSync(UPLOADS_DIR).forEach(f => {
+      const ext = path.extname(f).slice(1).replace('jpg', 'jpeg');
+      photos[f] = `data:image/${ext};base64,` + fs.readFileSync(path.join(UPLOADS_DIR, f)).toString('base64');
+    });
+  } catch (e) {}
+  logEvent('backup_downloaded', '', req.user);
+  saveDB();
+  res.setHeader('Content-Disposition', `attachment; filename="globalrate-backup-${new Date().toISOString().slice(0, 10)}.json"`);
+  res.json({ format: 'globalrate-backup-v1', exportedAt: new Date().toISOString(), db, photos });
+});
+
+// Restore: upload a backup file to bring everything back after a reset
+app.post('/api/admin/import', adminMiddleware, (req, res) => {
+  const b = req.body;
+  if (!b || b.format !== 'globalrate-backup-v1' || !b.db || !Array.isArray(b.db.users)) {
+    return res.status(400).json({ error: 'That is not a GlobalRate backup file' });
+  }
+  const keepUser = req.user;
+  db = {
+    users: b.db.users, marketplace: b.db.marketplace || [], rentals: b.db.rentals || [],
+    items: b.db.items || [], messages: b.db.messages || [], activity: b.db.activity || [],
+    stats: b.db.stats || { visits: {} }
+  };
+  db.stats.visits = db.stats.visits || {};
+  let restoredPhotos = 0;
+  Object.entries(b.photos || {}).forEach(([name, dataUrl]) => {
+    if (!/^[a-f0-9]{24}\.(jpg|png|webp)$/.test(name)) return;
+    const m = /^data:image\/(?:jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl || '');
+    if (!m) return;
+    fs.writeFileSync(path.join(UPLOADS_DIR, name), Buffer.from(m[1], 'base64'));
+    restoredPhotos++;
+  });
+  // keep the admin logged in if their account exists in the restored data
+  const same = db.users.find(u => u.email.toLowerCase() === keepUser.email.toLowerCase());
+  const token = tokenOf(req);
+  if (same) sessions[token] = same.id; else { delete sessions[token]; adminTokens.delete(token); }
+  logEvent('backup_restored', `${db.users.length} users, ${restoredPhotos} photos`, same || null);
+  saveDB();
+  res.json({ ok: true, users: db.users.length, photos: restoredPhotos });
+});
+
+// --- Direct messaging between logged-in users, tied to a specific listing ---
+app.post('/api/messages', authMiddleware, (req, res) => {
+  const { listingType, listingId, listingSummary, toUserId, text } = req.body;
+  if (!listingType || !listingId || !toUserId || !text) {
+    return res.status(400).json({ error: 'listingType, listingId, toUserId, and text are required' });
+  }
+  if (!['currency', 'rental', 'item'].includes(listingType)) {
+    return res.status(400).json({ error: 'listingType must be currency, rental or item' });
+  }
+  const toUser = db.users.find(u => u.id === toUserId);
+  if (!toUser) return res.status(404).json({ error: 'Recipient not found' });
+
+  const message = {
+    id: Date.now().toString() + Math.random().toString(36).slice(2, 7),
+    listingType,
+    listingId,
+    listingSummary: listingSummary || '',
+    fromUserId: req.user.id,
+    fromName: req.user.name,
+    toUserId: toUser.id,
+    toName: toUser.name,
+    text: text.trim(),
+    sentAt: new Date().toISOString()
+  };
+  db.messages.push(message);
+  logEvent('message', `${listingType}: ${req.user.name} → ${toUser.name}`, req.user);
+  saveDB();
+  res.status(201).json(message);
+});
+
+// Get the message thread for one listing between the current user and one other user
+app.get('/api/messages/thread', authMiddleware, (req, res) => {
+  const { listingType, listingId, otherUserId } = req.query;
+  if (!listingType || !listingId || !otherUserId) {
+    return res.status(400).json({ error: 'listingType, listingId, and otherUserId are required' });
+  }
+  const thread = db.messages
+    .filter(m => m.listingType === listingType && m.listingId === listingId &&
+      ((m.fromUserId === req.user.id && m.toUserId === otherUserId) ||
+       (m.fromUserId === otherUserId && m.toUserId === req.user.id)))
+    .sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt));
+  res.json(thread);
+});
+
+// List all conversations the current user is part of, most recent first
+app.get('/api/conversations', authMiddleware, (req, res) => {
+  const mine = db.messages.filter(m => m.fromUserId === req.user.id || m.toUserId === req.user.id);
+  const map = new Map();
+  mine.forEach(m => {
+    const otherId = m.fromUserId === req.user.id ? m.toUserId : m.fromUserId;
+    const otherName = m.fromUserId === req.user.id ? m.toName : m.fromName;
+    const key = `${m.listingType}:${m.listingId}:${otherId}`;
+    const existing = map.get(key);
+    if (!existing || new Date(m.sentAt) > new Date(existing.lastSentAt)) {
+      map.set(key, {
+        listingType: m.listingType,
+        listingId: m.listingId,
+        listingSummary: m.listingSummary,
+        otherUserId: otherId,
+        otherName,
+        lastText: m.text,
+        lastSentAt: m.sentAt
+      });
+    }
+  });
+  const conversations = Array.from(map.values()).sort((a, b) => new Date(b.lastSentAt) - new Date(a.lastSentAt));
+  res.json(conversations);
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Database file: ${DB_PATH}`);
+});
