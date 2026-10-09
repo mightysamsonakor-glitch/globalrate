@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 
 const app = express();
+app.set('trust proxy', 1); // behind Render's proxy, so req.ip is the real visitor
 const PORT = process.env.PORT || 3000;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'db.json');
 
@@ -71,7 +72,7 @@ async function sendWelcomeEmail(user) {
 function loadDB() {
   if (!fs.existsSync(DB_PATH)) {
     fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-    const initial = { users: [], marketplace: [], rentals: [], items: [], messages: [], activity: [], stats: { visits: {} } };
+    const initial = { users: [], marketplace: [], rentals: [], items: [], rooms: [], messages: [], activity: [], stats: { visits: {} } };
     fs.writeFileSync(DB_PATH, JSON.stringify(initial, null, 2));
     return initial;
   }
@@ -81,6 +82,7 @@ function loadDB() {
   data.marketplace = data.marketplace || [];
   data.rentals = data.rentals || [];
   data.items = data.items || [];
+  data.rooms = data.rooms || [];
   data.activity = data.activity || [];
   data.stats = data.stats || { visits: {} };
   data.stats.visits = data.stats.visits || {};
@@ -163,19 +165,19 @@ let rates = [
 ];
 
 let providers = [
-  { name: 'LemFi', rate: 1345, fee: 'No transfer fee', notes: 'Popular for UK/US to Nigeria transfers', region: 'Nigeria', submitted: false },
-  { name: 'Nala', rate: 1340, fee: 'Low fixed fee', notes: 'Strong for Europe to East Africa transfers', region: 'Kenya', submitted: false },
-  { name: 'Chipper Cash', rate: 1335, fee: 'Free for small amounts', notes: 'Good for cross-border transfers within Africa', region: 'Africa', submitted: false },
-  { name: 'Wise', rate: 1330, fee: 'Small % fee', notes: 'Transparent fee breakdown, widely trusted worldwide', region: 'Global', submitted: false },
-  { name: 'Sendwave', rate: 1338, fee: 'No fee', notes: 'Fast delivery, mobile-first, strong in West & East Africa', region: 'Africa', submitted: false },
-  { name: 'WorldRemit', rate: 1332, fee: 'Varies by corridor', notes: 'Covers 130+ countries including Cameroon, Bangladesh, Pakistan', region: 'Global', submitted: false },
-  { name: 'MoneyGram', rate: 1310, fee: 'Cash pickup fee applies', notes: 'One of the largest physical agent networks worldwide', region: 'Global', submitted: false },
-  { name: 'Western Union', rate: 1305, fee: 'Fee varies by method', notes: 'Extensive cash pickup coverage across Africa and Asia', region: 'Global', submitted: false },
-  { name: 'Remitly', rate: 1336, fee: 'Fee varies by speed', notes: 'Popular for South Asia (Pakistan, Bangladesh) corridors', region: 'Pakistan', submitted: false },
-  { name: 'Xoom (PayPal)', rate: 1328, fee: 'Small fixed fee', notes: 'Fast digital transfers, strong presence in South Asia', region: 'Bangladesh', submitted: false },
-  { name: 'Taptap Send', rate: 1342, fee: 'Low fixed fee', notes: 'Focused corridors into Cameroon, Ghana, and Bangladesh', region: 'Cameroon', submitted: false },
-  { name: 'Ria Money Transfer', rate: 1315, fee: 'Varies by destination', notes: 'Large pickup network across Algeria and Morocco', region: 'Morocco', submitted: false },
-  { name: 'Small World', rate: 1320, fee: 'Varies by corridor', notes: 'Specializes in remittances to Algeria, Morocco, and South Asia', region: 'Algeria', submitted: false }
+  { name: 'LemFi', rate: 1345, fee: 'No transfer fee', notes: 'Popular for UK/US to Nigeria transfers', region: 'Nigeria', url: 'https://lemfi.com', submitted: false },
+  { name: 'Nala', rate: 1340, fee: 'Low fixed fee', notes: 'Strong for Europe to East Africa transfers', region: 'Kenya', url: 'https://www.nala.com', submitted: false },
+  { name: 'Chipper Cash', rate: 1335, fee: 'Free for small amounts', notes: 'Good for cross-border transfers within Africa', region: 'Africa', url: 'https://chippercash.com', submitted: false },
+  { name: 'Wise', rate: 1330, fee: 'Small % fee', notes: 'Transparent fee breakdown, widely trusted worldwide', region: 'Global', url: 'https://wise.com', submitted: false },
+  { name: 'Sendwave', rate: 1338, fee: 'No fee', notes: 'Fast delivery, mobile-first, strong in West & East Africa', region: 'Africa', url: 'https://www.sendwave.com', submitted: false },
+  { name: 'WorldRemit', rate: 1332, fee: 'Varies by corridor', notes: 'Covers 130+ countries including Cameroon, Bangladesh, Pakistan', region: 'Global', url: 'https://www.worldremit.com', submitted: false },
+  { name: 'MoneyGram', rate: 1310, fee: 'Cash pickup fee applies', notes: 'One of the largest physical agent networks worldwide', region: 'Global', url: 'https://www.moneygram.com', submitted: false },
+  { name: 'Western Union', rate: 1305, fee: 'Fee varies by method', notes: 'Extensive cash pickup coverage across Africa and Asia', region: 'Global', url: 'https://www.westernunion.com', submitted: false },
+  { name: 'Remitly', rate: 1336, fee: 'Fee varies by speed', notes: 'Popular for South Asia (Pakistan, Bangladesh) corridors', region: 'Pakistan', url: 'https://www.remitly.com', submitted: false },
+  { name: 'Xoom (PayPal)', rate: 1328, fee: 'Small fixed fee', notes: 'Fast digital transfers, strong presence in South Asia', region: 'Bangladesh', url: 'https://www.xoom.com', submitted: false },
+  { name: 'Taptap Send', rate: 1342, fee: 'Low fixed fee', notes: 'Focused corridors into Cameroon, Ghana, and Bangladesh', region: 'Cameroon', url: 'https://www.taptapsend.com', submitted: false },
+  { name: 'Ria Money Transfer', rate: 1315, fee: 'Varies by destination', notes: 'Large pickup network across Algeria and Morocco', region: 'Morocco', url: 'https://www.riamoneytransfer.com', submitted: false },
+  { name: 'Small World', rate: 1320, fee: 'Varies by corridor', notes: 'Specializes in remittances to Algeria, Morocco, and South Asia', region: 'Algeria', url: 'https://www.smallworldfs.com', submitted: false }
 ];
 
 const CORE = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'CNY'];
@@ -218,14 +220,16 @@ app.get('/api/currencies', (req, res) => res.json(liveCurrencies));
 app.get('/api/providers', (req, res) => res.json(providers));
 
 app.post('/api/providers', (req, res) => {
-  const { name, rate, fee, notes, region } = req.body;
+  const { name, rate, fee, notes, region, url } = req.body;
   if (!name || !rate) return res.status(400).json({ error: 'Name and rate are required' });
+  const cleanUrl = /^https?:\/\/[^\s<>"']{3,200}$/i.test(String(url || '').trim()) ? String(url).trim() : '';
   const newEntry = {
     name: name.trim(),
     rate: Number(rate),
     fee: fee ? fee.trim() : 'Not specified',
     notes: notes ? notes.trim() : 'User submitted',
     region: region ? region.trim() : 'Global',
+    url: cleanUrl,
     submitted: true
   };
   providers.push(newEntry);
@@ -276,6 +280,86 @@ app.post('/api/login', async (req, res) => {
   logEvent('login', user.email, user);
   saveDB();
   res.json({ token, user: publicUser(user) });
+});
+
+// --- Forgotten password: emailed one-time link (valid 1 hour) ---
+const RESET_MINUTES = 60;
+const resetAttempts = {}; // simple in-memory rate limit: key -> [timestamps]
+function tooMany(key, max, windowMs) {
+  const now = Date.now();
+  const list = (resetAttempts[key] || []).filter(t => now - t < windowMs);
+  list.push(now);
+  resetAttempts[key] = list;
+  return list.length > max;
+}
+function hashToken(t) { return crypto.createHash('sha256').update(String(t)).digest('hex'); }
+function siteBase(req) {
+  if (process.env.BASE_URL) return process.env.BASE_URL.replace(/\/+$/, '');
+  const host = String(req.headers.host || '');
+  if (/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) return 'http://' + host;
+  return 'https://www.globalrate.space';
+}
+function issueResetToken(user) {
+  const token = crypto.randomBytes(32).toString('hex');
+  user.resetTokenHash = hashToken(token);
+  user.resetExpires = Date.now() + RESET_MINUTES * 60 * 1000;
+  saveDB();
+  return token;
+}
+async function sendResetEmail(user, link) {
+  if (!mailer) { console.log('Password reset requested but email is not configured. Link for', user.email, ':', link); return; }
+  try {
+    await mailer.sendMail({
+      from: `"GlobalRate" <${mailFromAddress}>`,
+      to: user.email,
+      subject: 'Reset your GlobalRate password',
+      text: `Hi ${user.name},\n\nSomeone (hopefully you) asked to reset your GlobalRate password. Open this link within ${RESET_MINUTES} minutes to choose a new one:\n\n${link}\n\nIf you did not ask for this, you can ignore this email — your password stays the same.\n\n— The GlobalRate team`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#1e293b">
+        <h2 style="color:#6d28d9">Reset your password</h2>
+        <p>Hi ${String(user.name).replace(/[<>&]/g, '')},</p>
+        <p>Someone (hopefully you) asked to reset your GlobalRate password. The button below works for ${RESET_MINUTES} minutes.</p>
+        <p style="margin:24px 0"><a href="${link}" style="background:#7c3aed;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Choose a new password</a></p>
+        <p style="font-size:13px;color:#64748b">Or paste this link into your browser:<br>${link}</p>
+        <p style="font-size:13px;color:#64748b">If you did not ask for this, ignore this email — your password stays the same.</p></div>`
+    });
+    console.log('Password reset email sent to', user.email);
+  } catch (err) {
+    console.log('Could not send reset email:', err.message);
+  }
+}
+
+app.post('/api/forgot-password', (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const generic = { ok: true, message: 'If an account exists for that email, a reset link is on its way. Check your inbox and spam folder.' };
+  if (!email) return res.status(400).json({ error: 'Please enter your email' });
+  if (tooMany('ip:' + req.ip, 20, 3600000) || tooMany('em:' + email, 5, 3600000)) {
+    return res.status(429).json({ error: 'Too many requests. Please try again in a little while.' });
+  }
+  const user = db.users.find(u => u.email.toLowerCase() === email);
+  logEvent('password_reset_requested', user ? email : 'unknown email', user || null);
+  if (user) {
+    const token = issueResetToken(user);
+    sendResetEmail(user, siteBase(req) + '/?reset=' + token);
+  }
+  res.json(generic);
+});
+
+app.post('/api/reset-password', async (req, res) => {
+  const { token, password } = req.body || {};
+  if (tooMany('rp:' + req.ip, 30, 3600000)) return res.status(429).json({ error: 'Too many attempts. Try again later.' });
+  if (!token || !password) return res.status(400).json({ error: 'Link and new password are required' });
+  if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  const h = hashToken(token);
+  const user = db.users.find(u => u.resetTokenHash && u.resetTokenHash === h && u.resetExpires > Date.now());
+  if (!user) return res.status(400).json({ error: 'This reset link has expired or was already used. Please request a new one.' });
+  user.passwordHash = await bcrypt.hash(String(password), 10);
+  delete user.resetTokenHash; delete user.resetExpires;
+  Object.keys(sessions).forEach(t => { if (sessions[t] === user.id) { delete sessions[t]; adminTokens.delete(t); } });
+  const session = crypto.randomBytes(24).toString('hex');
+  sessions[session] = user.id;
+  logEvent('password_reset_done', user.email, user);
+  saveDB();
+  res.json({ token: session, user: publicUser(user) });
 });
 
 app.get('/api/me', authMiddleware, (req, res) => {
@@ -393,6 +477,16 @@ app.delete('/api/rentals/:id', authMiddleware, (req, res) => {
 const ITEM_CATEGORIES = ['Phones & tablets', 'Laptops & computers', 'Gaming & consoles', 'Audio & headphones', 'Cameras', 'TVs & appliances', 'Furniture & home', 'Clothing & shoes', 'Books & study', 'Sports & bikes', 'Other'];
 const MAX_PHOTOS = 4;
 
+function savePhoto(dataUrl) {
+  const m = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl || '');
+  if (!m) return null;
+  const buf = Buffer.from(m[2], 'base64');
+  if (buf.length > 2 * 1024 * 1024) return null;
+  const name = crypto.randomBytes(12).toString('hex') + '.' + (m[1] === 'jpeg' ? 'jpg' : m[1]);
+  fs.writeFileSync(path.join(UPLOADS_DIR, name), buf);
+  return '/uploads/' + name;
+}
+
 function saveItemPhotos(photos) {
   const urls = [];
   for (const dataUrl of (Array.isArray(photos) ? photos : []).slice(0, MAX_PHOTOS)) {
@@ -465,10 +559,101 @@ app.delete('/api/items/:id', authMiddleware, (req, res) => {
   res.status(204).end();
 });
 
+
+// --- Rooms to let / flat-sharing (with labelled photo slots) ---
+const ROOM_TYPES = ['Room in shared apartment', 'Private room', 'Studio', 'Whole apartment', 'Bed in dorm'];
+const ROOM_PHOTO_SLOTS = ['Cover photo', 'Bedroom', 'Kitchen', 'Bathroom', 'Living area'];
+const ROOM_AMENITIES = ['WiFi', 'Washing machine', 'Dishwasher', 'Heating', 'Air conditioning', 'Balcony', 'Elevator', 'Parking', 'Desk / study space', 'Near public transport'];
+const ROOM_RULES = ['Students welcome', 'Couples OK', 'Pets OK', 'Smoking OK'];
+const ROOM_GENDER = ['Anyone', 'Female only', 'Male only'];
+const ROOM_BILLS = ['Not included', 'Included', 'Partly included'];
+
+function roomForViewer(room, signedIn) {
+  const out = { ...room };
+  if (!signedIn) { out.address = ''; out.addressHidden = !!room.address; }
+  return out;
+}
+
+app.get('/api/rooms', (req, res) => {
+  const signedIn = !!sessions[tokenOf(req)];
+  res.json(db.rooms.map(r => roomForViewer(r, signedIn)));
+});
+
+app.post('/api/rooms', authMiddleware, (req, res) => {
+  const b = req.body || {};
+  const clean = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
+  const title = clean(b.title, 100), city = clean(b.city, 60), area = clean(b.area || b.location, 80), address = clean(b.address, 140);
+  if (!title || !b.price || !city || !address) {
+    return res.status(400).json({ error: 'Title, monthly rent, city and street address are required' });
+  }
+  if (!(Number(b.price) >= 0)) return res.status(400).json({ error: 'Rent must be a number' });
+  const num = (v, max) => (v !== undefined && v !== null && v !== '' && Number(v) >= 0) ? Math.min(Number(v), max) : null;
+  const slots = (Array.isArray(b.photoSlots) ? b.photoSlots : []).slice(0, ROOM_PHOTO_SLOTS.length);
+  const photos = [], photoLabels = [];
+  for (const sl of slots) {
+    const url = savePhoto(sl && sl.data);
+    if (!url) continue;
+    photos.push(url);
+    photoLabels.push(ROOM_PHOTO_SLOTS.includes(sl.label) ? sl.label : 'Photo');
+  }
+  const pick = (list, v, d) => list.includes(v) ? v : d;
+  const listing = {
+    id: Date.now().toString(),
+    ownerId: req.user.id,
+    posterName: req.user.name,
+    phone: req.user.phone,
+    title,
+    roomType: pick(ROOM_TYPES, b.roomType, ROOM_TYPES[0]),
+    price: Number(b.price),
+    deposit: num(b.deposit, 100000),
+    bills: pick(ROOM_BILLS, b.bills, 'Not included'),
+    availableFrom: b.availableFrom ? String(b.availableFrom).slice(0, 10) : '',
+    minStay: num(b.minStay, 60),
+    city, area, address,
+    roomSize: num(b.roomSize, 500),
+    furnished: b.furnished === false || b.furnished === 'no' ? false : true,
+    flatmates: num(b.flatmates, 12),
+    genderPref: pick(ROOM_GENDER, b.genderPref, 'Anyone'),
+    amenities: (Array.isArray(b.amenities) ? b.amenities : []).filter(x => ROOM_AMENITIES.includes(x)),
+    rules: (Array.isArray(b.rules) ? b.rules : []).filter(x => ROOM_RULES.includes(x)),
+    description: clean(b.description, 1000),
+    photos, photoLabels,
+    status: 'available',
+    postedAt: new Date().toISOString()
+  };
+  db.rooms.unshift(listing);
+  logEvent('rooms_posted', `${listing.title} — €${listing.price}/month, ${listing.city} (${listing.photos.length} photos)`, req.user);
+  saveDB();
+  res.status(201).json(listing);
+});
+
+app.patch('/api/rooms/:id', authMiddleware, (req, res) => {
+  const listing = db.rooms.find(l => l.id === req.params.id);
+  if (!listing) return res.status(404).json({ error: 'Listing not found' });
+  if (listing.ownerId !== req.user.id) return res.status(403).json({ error: 'You can only update your own listings' });
+  if (!['available', 'rented'].includes(req.body.status)) {
+    return res.status(400).json({ error: 'Status must be available or rented' });
+  }
+  listing.status = req.body.status;
+  saveDB();
+  res.json(listing);
+});
+
+app.delete('/api/rooms/:id', authMiddleware, (req, res) => {
+  const idx = db.rooms.findIndex(l => l.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Listing not found' });
+  if (db.rooms[idx].ownerId !== req.user.id && !isAdminReq(req)) return res.status(403).json({ error: 'You can only remove your own listings' });
+  logEvent('rooms_deleted', db.rooms[idx].title || '', req.user);
+  deletePhotoFiles(db.rooms[idx].photos);
+  db.rooms.splice(idx, 1);
+  saveDB();
+  res.status(204).end();
+});
+
 // ---------------------------------------------------------------------------
 // Admin API (all routes need a logged-in admin who has entered ADMIN_KEY)
 // ---------------------------------------------------------------------------
-const LISTING_TYPES = { currency: 'marketplace', rental: 'rentals', item: 'items' };
+const LISTING_TYPES = { currency: 'marketplace', rental: 'rentals', item: 'items', room: 'rooms' };
 
 app.post('/api/admin/unlock', authMiddleware, (req, res) => {
   if (!canAdmin(req.user) || !ADMIN_KEY) {
@@ -514,6 +699,7 @@ app.get('/api/admin/overview', adminMiddleware, (req, res) => {
       currencyListings: db.marketplace.length,
       rentalListings: db.rentals.length,
       itemListings: db.items.length,
+      roomListings: db.rooms.length,
       messages: db.messages.length,
       photos: uploadFiles,
       activeSessions: Object.keys(sessions).length
@@ -522,7 +708,9 @@ app.get('/api/admin/overview', adminMiddleware, (req, res) => {
       currencyAvailable: count(db.marketplace, 'available'),
       rentalsAvailable: count(db.rentals, 'available'),
       itemsAvailable: count(db.items, 'available'),
-      itemsSold: count(db.items, 'sold')
+      itemsSold: count(db.items, 'sold'),
+      roomsAvailable: count(db.rooms, 'available'),
+      roomsRented: count(db.rooms, 'rented')
     },
     days,
     server: {
@@ -545,7 +733,8 @@ app.get('/api/admin/users', adminMiddleware, (req, res) => {
     isAdmin: ADMIN_EMAILS.includes(u.email.toLowerCase()),
     listings: db.marketplace.filter(l => l.ownerId === u.id).length +
               db.rentals.filter(l => l.ownerId === u.id).length +
-              db.items.filter(l => l.ownerId === u.id).length
+              db.items.filter(l => l.ownerId === u.id).length +
+              db.rooms.filter(l => l.ownerId === u.id).length
   })));
 });
 
@@ -554,9 +743,11 @@ app.delete('/api/admin/users/:id', adminMiddleware, (req, res) => {
   if (!user) return res.status(404).json({ error: 'User not found' });
   if (ADMIN_EMAILS.includes(user.email.toLowerCase())) return res.status(400).json({ error: 'Admin accounts cannot be deleted here' });
   db.items.filter(l => l.ownerId === user.id).forEach(l => deletePhotoFiles(l.photos));
+  db.rooms.filter(l => l.ownerId === user.id).forEach(l => deletePhotoFiles(l.photos));
   db.marketplace = db.marketplace.filter(l => l.ownerId !== user.id);
   db.rentals = db.rentals.filter(l => l.ownerId !== user.id);
   db.items = db.items.filter(l => l.ownerId !== user.id);
+  db.rooms = db.rooms.filter(l => l.ownerId !== user.id);
   db.messages = db.messages.filter(m => m.fromUserId !== user.id && m.toUserId !== user.id);
   db.users = db.users.filter(u => u.id !== user.id);
   Object.keys(sessions).forEach(t => { if (sessions[t] === user.id) { delete sessions[t]; adminTokens.delete(t); } });
@@ -565,9 +756,17 @@ app.delete('/api/admin/users/:id', adminMiddleware, (req, res) => {
   res.status(204).end();
 });
 
+app.post('/api/admin/users/:id/reset-link', adminMiddleware, (req, res) => {
+  const user = db.users.find(u => u.id === req.params.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  const token = issueResetToken(user);
+  logEvent('reset_link_by_admin', user.email, req.user);
+  res.json({ link: siteBase(req) + '/?reset=' + token, expiresMinutes: RESET_MINUTES });
+});
+
 app.get('/api/admin/listings', adminMiddleware, (req, res) => {
   const tag = (arr, type) => arr.map(l => ({ ...l, type }));
-  const all = [...tag(db.marketplace, 'currency'), ...tag(db.rentals, 'rental'), ...tag(db.items, 'item')]
+  const all = [...tag(db.marketplace, 'currency'), ...tag(db.rentals, 'rental'), ...tag(db.items, 'item'), ...tag(db.rooms, 'room')]
     .sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt));
   res.json(all);
 });
@@ -609,7 +808,7 @@ app.post('/api/admin/import', adminMiddleware, (req, res) => {
   const keepUser = req.user;
   db = {
     users: b.db.users, marketplace: b.db.marketplace || [], rentals: b.db.rentals || [],
-    items: b.db.items || [], messages: b.db.messages || [], activity: b.db.activity || [],
+    items: b.db.items || [], rooms: b.db.rooms || [], messages: b.db.messages || [], activity: b.db.activity || [],
     stats: b.db.stats || { visits: {} }
   };
   db.stats.visits = db.stats.visits || {};
@@ -636,8 +835,8 @@ app.post('/api/messages', authMiddleware, (req, res) => {
   if (!listingType || !listingId || !toUserId || !text) {
     return res.status(400).json({ error: 'listingType, listingId, toUserId, and text are required' });
   }
-  if (!['currency', 'rental', 'item'].includes(listingType)) {
-    return res.status(400).json({ error: 'listingType must be currency, rental or item' });
+  if (!['currency', 'rental', 'item', 'room'].includes(listingType)) {
+    return res.status(400).json({ error: 'listingType must be currency, rental, item or room' });
   }
   const toUser = db.users.find(u => u.id === toUserId);
   if (!toUser) return res.status(404).json({ error: 'Recipient not found' });
