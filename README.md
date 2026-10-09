@@ -10,6 +10,10 @@ A free community marketplace for students and expats — built by <b>MightSmith<
   <a href="https://www.globalrate.space"><b>🌍 Live site: www.globalrate.space</b></a>
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/home.png" alt="GlobalRate homepage" width="900">
+</p>
+
 ---
 
 ## What is GlobalRate?
