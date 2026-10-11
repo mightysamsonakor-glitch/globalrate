@@ -109,12 +109,55 @@ function saveDB() {
 }
 let db = loadDB();
 
-// In-memory session tokens — resets on server restart, users just log back in
-let sessions = {};
+// --- Sessions ---------------------------------------------------------------
+// Regular users stay signed in until they have been idle for SESSION_IDLE_DAYS (default 30, sliding —
+// every visit extends it), like most marketplaces and social apps. Admin powers are stricter: they lock
+// again after ADMIN_IDLE_MINUTES (default 30) without admin activity, and must be unlocked with the key.
+// Sessions are saved to a small file next to the database so deploys/restarts don't sign everyone out.
+const SESSION_IDLE_MS = (Number(process.env.SESSION_IDLE_DAYS) || 30) * 24 * 3600 * 1000;
+const ADMIN_IDLE_MS = (Number(process.env.ADMIN_IDLE_MINUTES) || 30) * 60 * 1000;
+const SESSIONS_PATH = process.env.SESSIONS_PATH || path.join(path.dirname(DB_PATH), 'sessions.json');
+let sessions = {};      // token -> userId
+const sessionSeen = {}; // token -> last time it was used
+const adminSeen = {};   // token -> last admin activity
+let sessionSaveTimer = null;
+function persistSessions() {
+  if (sessionSaveTimer) return;
+  sessionSaveTimer = setTimeout(() => {
+    sessionSaveTimer = null;
+    try {
+      const out = {};
+      Object.keys(sessions).forEach(t => { out[t] = { u: sessions[t], s: sessionSeen[t] || Date.now() }; });
+      fs.writeFileSync(SESSIONS_PATH, JSON.stringify(out), { mode: 0o600 });
+    } catch (e) { console.error('Could not save sessions:', e.message); }
+  }, 3000);
+}
+(function loadSessions() {
+  try {
+    const saved = JSON.parse(fs.readFileSync(SESSIONS_PATH, 'utf8'));
+    const now = Date.now();
+    Object.keys(saved).forEach(t => {
+      const r = saved[t];
+      if (r && r.u && now - r.s < SESSION_IDLE_MS && db.users.some(u => u.id === r.u)) { sessions[t] = r.u; sessionSeen[t] = r.s; }
+    });
+  } catch (e) { /* no saved sessions yet */ }
+})();
+function startSession(token, userId) { sessions[token] = userId; sessionSeen[token] = Date.now(); persistSessions(); }
+function endSession(token) { delete sessions[token]; delete sessionSeen[token]; delete adminSeen[token]; adminTokens.delete(token); persistSessions(); }
+// Returns the user id for a token if it is still valid (and slides the idle timer), else null.
+function liveSession(token) {
+  const userId = sessions[token];
+  if (!userId) return null;
+  const now = Date.now();
+  if (now - (sessionSeen[token] || 0) > SESSION_IDLE_MS) { endSession(token); return null; }
+  if (now - (sessionSeen[token] || 0) > 10 * 60 * 1000) { sessionSeen[token] = now; persistSessions(); } // refresh at most every 10 min
+  return userId;
+}
+setInterval(() => { Object.keys(sessions).forEach(t => { if (Date.now() - (sessionSeen[t] || 0) > SESSION_IDLE_MS) endSession(t); }); }, 3600 * 1000).unref();
 
 function authMiddleware(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
-  const userId = sessions[token];
+  const userId = liveSession(token);
   const user = userId && db.users.find(u => u.id === userId);
   if (!user) return res.status(401).json({ error: 'Please log in to continue' });
   req.user = user;
@@ -122,11 +165,6 @@ function authMiddleware(req, res, next) {
 }
 
 
-// ---------------------------------------------------------------------------
-// Admin / owner tools
-//  - ADMIN_EMAILS : comma-separated list of emails allowed to open the admin panel
-//  - ADMIN_KEY    : secret passphrase (set on the host) you type once to unlock admin powers
-// ---------------------------------------------------------------------------
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
 const ADMIN_KEY = process.env.ADMIN_KEY || '';
 const adminTokens = new Set();          // login tokens that have been unlocked with the admin key
@@ -135,7 +173,12 @@ const startedAt = Date.now();
 
 function tokenOf(req) { return (req.headers.authorization || '').replace('Bearer ', ''); }
 function canAdmin(user) { return !!user && ADMIN_EMAILS.includes(user.email.toLowerCase()); }
-function isAdminReq(req) { return canAdmin(req.user) && adminTokens.has(tokenOf(req)); }
+function isAdminReq(req) {
+  const t = tokenOf(req);
+  if (!canAdmin(req.user) || !adminTokens.has(t)) return false;
+  if (Date.now() - (adminSeen[t] || 0) > ADMIN_IDLE_MS) { adminTokens.delete(t); return false; } // admin lock after idle
+  return true;
+}
 function publicUser(user, req) {
   return { id: user.id, name: user.name, phone: user.phone, email: user.email,
            canAdmin: canAdmin(user), isAdmin: req ? isAdminReq(req) : false };
@@ -143,6 +186,7 @@ function publicUser(user, req) {
 function adminMiddleware(req, res, next) {
   authMiddleware(req, res, () => {
     if (!isAdminReq(req)) return res.status(403).json({ error: 'Admin access required' });
+    adminSeen[tokenOf(req)] = Date.now();
     next();
   });
 }
@@ -277,7 +321,7 @@ app.post('/api/register', async (req, res) => {
   sendWelcomeEmail(user);
 
   const token = crypto.randomBytes(24).toString('hex');
-  sessions[token] = user.id;
+  startSession(token, user.id);
   logEvent('register', user.email, user);
   saveDB();
   res.status(201).json({ token, user: publicUser(user) });
@@ -291,7 +335,7 @@ app.post('/api/login', async (req, res) => {
   if (!match) { logEvent('login_failed', 'wrong password: ' + user.email, user); return res.status(401).json({ error: 'Invalid email or password' }); }
 
   const token = crypto.randomBytes(24).toString('hex');
-  sessions[token] = user.id;
+  startSession(token, user.id);
   logEvent('login', user.email, user);
   saveDB();
   res.json({ token, user: publicUser(user) });
@@ -369,9 +413,9 @@ app.post('/api/reset-password', async (req, res) => {
   if (!user) return res.status(400).json({ error: 'This reset link has expired or was already used. Please request a new one.' });
   user.passwordHash = await bcrypt.hash(String(password), 10);
   delete user.resetTokenHash; delete user.resetExpires;
-  Object.keys(sessions).forEach(t => { if (sessions[t] === user.id) { delete sessions[t]; adminTokens.delete(t); } });
+  Object.keys(sessions).forEach(t => { if (sessions[t] === user.id) endSession(t); });
   const session = crypto.randomBytes(24).toString('hex');
-  sessions[session] = user.id;
+  startSession(session, user.id);
   logEvent('password_reset_done', user.email, user);
   saveDB();
   res.json({ token: session, user: publicUser(user) });
@@ -383,15 +427,14 @@ app.get('/api/me', authMiddleware, (req, res) => {
 
 app.post('/api/logout', authMiddleware, (req, res) => {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
-  delete sessions[token];
-  adminTokens.delete(token);
+  endSession(token);
   res.status(204).end();
 });
 
 // --- Local currency marketplace (posting requires login; browsing is open) ---
 // Hide lister phone numbers until the viewer is signed in
 const maskPhones = (list, req) => {
-  if (sessions[tokenOf(req)]) return list;
+  if (liveSession(tokenOf(req))) return list;
   return list.map(x => ({ ...x, phone: '', phoneHidden: !!x.phone }));
 };
 app.get('/api/marketplace', (req, res) => res.json(maskPhones(db.marketplace, req)));
@@ -595,7 +638,7 @@ function roomForViewer(room, signedIn) {
 }
 
 app.get('/api/rooms', (req, res) => {
-  const signedIn = !!sessions[tokenOf(req)];
+  const signedIn = !!liveSession(tokenOf(req));
   res.json(db.rooms.map(r => roomForViewer(r, signedIn)));
 });
 
@@ -692,7 +735,7 @@ app.post('/api/admin/unlock', authMiddleware, (req, res) => {
     return res.status(401).json({ error: 'Wrong admin key' });
   }
   delete adminFailures[req.user.id];
-  adminTokens.add(tokenOf(req));
+  adminTokens.add(tokenOf(req)); adminSeen[tokenOf(req)] = Date.now();
   logEvent('admin_unlocked', req.user.email, req.user);
   saveDB();
   res.json({ ok: true });
@@ -770,7 +813,7 @@ app.delete('/api/admin/users/:id', adminMiddleware, (req, res) => {
   db.rooms = db.rooms.filter(l => l.ownerId !== user.id);
   db.messages = db.messages.filter(m => m.fromUserId !== user.id && m.toUserId !== user.id);
   db.users = db.users.filter(u => u.id !== user.id);
-  Object.keys(sessions).forEach(t => { if (sessions[t] === user.id) { delete sessions[t]; adminTokens.delete(t); } });
+  Object.keys(sessions).forEach(t => { if (sessions[t] === user.id) endSession(t); });
   logEvent('user_deleted_by_admin', user.email, req.user);
   saveDB();
   res.status(204).end();
@@ -843,7 +886,7 @@ app.post('/api/admin/import', adminMiddleware, (req, res) => {
   // keep the admin logged in if their account exists in the restored data
   const same = db.users.find(u => u.email.toLowerCase() === keepUser.email.toLowerCase());
   const token = tokenOf(req);
-  if (same) sessions[token] = same.id; else { delete sessions[token]; adminTokens.delete(token); }
+  if (same) startSession(token, same.id); else endSession(token);
   logEvent('backup_restored', `${db.users.length} users, ${restoredPhotos} photos`, same || null);
   saveDB();
   res.json({ ok: true, users: db.users.length, photos: restoredPhotos });

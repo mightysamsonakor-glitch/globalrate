@@ -89,6 +89,8 @@ Set these in `.env` locally, or as environment variables on your host.
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | Outgoing email (welcome + password reset) |
 | `ADMIN_EMAILS` | Comma-separated emails allowed into the admin panel |
 | `ADMIN_KEY` | Secret key required for admin access |
+| `SESSION_IDLE_DAYS` | Days of inactivity before a user is signed out (default 30, sliding) |
+| `ADMIN_IDLE_MINUTES` | Minutes of inactivity before admin powers lock again (default 30) |
 
 ## Password reset
 
