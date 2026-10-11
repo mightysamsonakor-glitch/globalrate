@@ -7,6 +7,13 @@
 A free community marketplace for students and expats — built by <b>MightSmith</b> in Vilnius 🇱🇹</p>
 
 <p align="center">
+  <img alt="Live" src="https://img.shields.io/badge/live-globalrate.space-7c3aed?style=for-the-badge">
+  <img alt="Node" src="https://img.shields.io/badge/Node.js-18%2B-339933?style=for-the-badge&logo=nodedotjs&logoColor=white">
+  <img alt="Express" src="https://img.shields.io/badge/Express-API-000000?style=for-the-badge&logo=express&logoColor=white">
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-2563eb?style=for-the-badge">
+</p>
+
+<p align="center">
   <a href="https://www.globalrate.space"><b>🌍 Live site: www.globalrate.space</b></a>
 </p>
 
@@ -18,7 +25,7 @@ A free community marketplace for students and expats — built by <b>MightSmith<
 
 ## What is GlobalRate?
 
-Moving abroad means exchanging money, finding a room, buying a phone and getting around — usually through scattered Facebook groups and WhatsApp chats. **GlobalRate puts it all in one place**, with real accounts, built-in chat and no agent fees.
+Moving abroad means exchanging money, finding a room, buying a phone and getting around — usually through scattered Facebook groups and WhatsApp chats. **GlobalRate puts it all in one place**, with real accounts and built-in chat.
 
 ### Features
 
@@ -55,6 +62,15 @@ Moving abroad means exchanging money, finding a room, buying a phone and getting
 | Light | Dark |
 |---|---|
 | ![Items light](docs/screenshots/items-light.png) | ![Items dark](docs/screenshots/items-dark.png) |
+
+## Engineering highlights
+
+- **Privacy by design:** room street addresses and lister phone numbers are removed **on the server** for signed-out visitors, not just hidden in the UI.
+- **Sessions:** 30-day sliding sessions that survive restarts, with a separate 30-minute idle lock for admin powers.
+- **Password reset:** hashed one-hour tokens, rate limiting, and an admin fallback link.
+- **Photo pipeline:** images are resized in the browser, validated and stored on the server, with labelled slots for room photos.
+- **Admin tooling:** activity feed, user and listing management, and full backup / restore (including photos).
+- **Mobile-first:** a bottom tab bar on phones, dark mode, and no horizontal overflow on small screens.
 
 ## Tech stack
 
