@@ -83,6 +83,66 @@ async function sendWelcomeEmail(user) {
   }
 }
 
+// --- Listing confirmation email: sent to the poster right after they list something ---
+const listingMailCount = {}; // userId -> { day, n } (caps confirmation emails at 15 / user / day)
+const escMail = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+async function sendListingEmail(user, kind, l) {
+  if (!mailer || !user || !user.email) return;
+  const day = new Date().toISOString().slice(0, 10);
+  const c = listingMailCount[user.id] = (listingMailCount[user.id] && listingMailCount[user.id].day === day) ? listingMailCount[user.id] : { day, n: 0 };
+  if (c.n >= 15) return;
+  c.n++;
+  const site = process.env.BASE_URL ? process.env.BASE_URL.replace(/\/+$/, '') : 'https://www.globalrate.space';
+  const kinds = {
+    item:        { icon: '📦', label: 'item',          section: 'itemsSection',       title: l => l.title,                                   line: l => `€${l.price} · ${l.category} · ${l.condition} · 📍 ${l.location}` },
+    room:        { icon: '🏠', label: 'room',          section: 'roomsSection',       title: l => l.title,                                   line: l => `€${l.price}/month · ${l.roomType} · 📍 ${[l.area, l.city].filter(Boolean).join(', ')}` },
+    rental:      { icon: '🚗', label: 'rental',        section: 'rentalsSection',     title: l => `${l.vehicleType}: ${l.description}`,       line: l => `€${l.pricePerDay}/day · 📍 ${l.location}` },
+    exchange:    { icon: '💱', label: 'exchange offer', section: 'marketplaceSection', title: l => `${l.haveAmount} ${l.haveCurrency} → ${l.wantCurrency}`, line: l => `📍 ${l.location}` }
+  };
+  const k = kinds[kind]; if (!k) return;
+  const name = String(user.name || '').split(' ')[0] || 'there';
+  const title = k.title(l), line = k.line(l);
+  const link = `${site}/#${k.section}`;
+  const photos = Array.isArray(l.photos) ? l.photos : [];
+  const attachments = [];
+  if (photos[0] && String(photos[0]).startsWith('/uploads/')) {
+    const file = path.join(UPLOADS_DIR, path.basename(photos[0]));
+    if (fs.existsSync(file)) attachments.push({ filename: path.basename(file), path: file, cid: 'cover@globalrate' });
+  }
+  const tips = kind === 'exchange'
+    ? ['Meet in a public place and never send money before you have received the other currency.', 'Check the live rate on GlobalRate before you agree on an amount.']
+    : kind === 'room'
+      ? ['View the place in person with the tenant before any payment and ask for a written agreement.', 'Your street address stays hidden until a visitor signs in.']
+      : ['Meet in a public place and check the item or vehicle before any payment.', 'Mark it as sold or rented when it is gone so people stop asking.'];
+  try {
+    await mailer.sendMail({
+      from: `"GlobalRate" <${mailFromAddress}>`,
+      to: user.email,
+      subject: `✅ Your ${k.label} is live on GlobalRate: ${String(title).slice(0, 60)}`,
+      text: `Hi ${name},\n\nYour ${k.label} is now live on GlobalRate:\n\n${title}\n${line}\n\nView it: ${link}\n\nWhat happens next:\n- People can message you from the listing. You will see unread messages on the GlobalRate homepage and under Messages.\n- You can mark it as sold/rented or remove it any time from the listing.\n\nSafety:\n- ${tips.join('\n- ')}\n\n— The GlobalRate team`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#1e293b">
+        <h2 style="color:#6d28d9;margin-bottom:4px">Your ${k.label} is live ${k.icon}✅</h2>
+        <p style="margin-top:0">Hi ${escMail(name)}, thanks for listing on GlobalRate.</p>
+        <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin:16px 0">
+          ${attachments.length ? '<img src="cid:cover@globalrate" alt="" style="width:100%;max-height:260px;object-fit:cover;display:block">' : ''}
+          <div style="padding:14px 16px"><div style="font-size:18px;font-weight:bold">${k.icon} ${escMail(title)}</div>
+          <div style="color:#475569;margin-top:6px;font-size:14px">${escMail(line)}</div></div>
+        </div>
+        <p style="margin:20px 0"><a href="${link}" style="background:#7c3aed;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">View your listing</a></p>
+        <p style="font-weight:bold;margin-bottom:4px">What happens next</p>
+        <ul style="line-height:1.7;margin-top:0"><li>People can message you from the listing. Unread messages show on the GlobalRate homepage and under <b>Messages</b>.</li><li>Mark it as sold or rented, or remove it, any time from the listing.</li></ul>
+        <p style="font-weight:bold;margin-bottom:4px">Stay safe</p>
+        <ul style="line-height:1.7;margin-top:0;color:#475569">${tips.map(t => `<li>${escMail(t)}</li>`).join('')}</ul>
+        <p style="font-size:12px;color:#94a3b8">You received this because you posted a listing on GlobalRate.</p>
+        <p>— The GlobalRate team</p></div>`,
+      attachments
+    });
+    console.log(`Listing email sent to ${user.email} (${kind})`);
+  } catch (err) {
+    console.log('Could not send listing email:', err.message);
+  }
+}
+
 // --- Simple JSON-file database (persists across restarts) ---
 function loadDB() {
   if (!fs.existsSync(DB_PATH)) {
@@ -460,6 +520,7 @@ app.post('/api/marketplace', authMiddleware, (req, res) => {
   db.marketplace.unshift(listing);
   logEvent('marketplace_posted', `${listing.haveAmount} ${listing.haveCurrency} → ${listing.wantCurrency} (${listing.location})`, req.user);
   saveDB();
+  sendListingEmail(req.user, 'exchange', listing);
   res.status(201).json(listing);
 });
 
@@ -510,6 +571,7 @@ app.post('/api/rentals', authMiddleware, (req, res) => {
   db.rentals.unshift(listing);
   logEvent('rentals_posted', `${listing.vehicleType}: ${listing.description} (${listing.location})`, req.user);
   saveDB();
+  sendListingEmail(req.user, 'rental', listing);
   res.status(201).json(listing);
 });
 
@@ -596,6 +658,7 @@ app.post('/api/items', authMiddleware, (req, res) => {
   db.items.unshift(listing);
   logEvent('items_posted', `${listing.title} — €${listing.price} (${listing.photos.length} photos)`, req.user);
   saveDB();
+  sendListingEmail(req.user, 'item', listing);
   res.status(201).json(listing);
 });
 
@@ -687,6 +750,7 @@ app.post('/api/rooms', authMiddleware, (req, res) => {
   db.rooms.unshift(listing);
   logEvent('rooms_posted', `${listing.title} — €${listing.price}/month, ${listing.city} (${listing.photos.length} photos)`, req.user);
   saveDB();
+  sendListingEmail(req.user, 'room', listing);
   res.status(201).json(listing);
 });
 

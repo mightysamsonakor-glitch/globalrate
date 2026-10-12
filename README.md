@@ -37,7 +37,7 @@ Moving abroad means exchanging money, finding a room, buying a phone and getting
 - 🌐 **Remittance agents** — compare providers in a pop-up dialog with clickable links straight to each provider.
 - 💬 **Per-listing chat & inbox** — message the poster directly; unread messages are tracked.
 - 🔢 **Hero dashboard** — live listing counts per category and unread-message count, all clickable.
-- 🔐 **Accounts** — bcrypt-hashed passwords, welcome email, and a friendly **forgot-password** flow by email.
+- 🔐 **Accounts** — bcrypt-hashed passwords, welcome email, a **"your listing is live" confirmation email** (with cover photo and safety tips), and a friendly **forgot-password** flow by email.
 - 🛠️ **Admin panel** — stats, activity feed, users, listings, backup & restore, manual reset-link button.
 - 🌙 **Dark / light mode** and a **mobile-first layout**.
 
