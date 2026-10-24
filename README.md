@@ -4,7 +4,7 @@
 
 <h1 align="center">GlobalRate</h1>
 <p align="center"><b>Live currency rates · peer-to-peer money exchange · rooms to let · gadgets · rentals</b><br>
-A free community marketplace for students and expats — built by <b>MightSmith</b> in Vilnius 🇱🇹</p>
+A free community marketplace for students and expats — built by <b>Mighty Samson Akor</b> in Vilnius 🇱🇹</p>
 
 <p align="center">
   <img alt="Live" src="https://img.shields.io/badge/live-globalrate.space-7c3aed?style=for-the-badge">
@@ -18,7 +18,7 @@ A free community marketplace for students and expats — built by <b>MightSmith<
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/home.png" alt="GlobalRate homepage" width="900">
+  <img src="docs/preview.webp" alt="GlobalRate homepage" width="900">
 </p>
 
 ---

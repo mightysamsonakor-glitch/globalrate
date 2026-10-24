@@ -387,12 +387,31 @@ app.post('/api/register', async (req, res) => {
   res.status(201).json({ token, user: publicUser(user) });
 });
 
+// --- Login rate limit: only failed attempts count, so normal users are never blocked ---
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const loginFails = {}; // key -> [timestamps of failed logins]
+function recentFails(key) {
+  const now = Date.now();
+  const list = (loginFails[key] || []).filter(t => now - t < LOGIN_WINDOW_MS);
+  if (list.length) loginFails[key] = list; else delete loginFails[key];
+  return list.length;
+}
+function recordFail(key) { (loginFails[key] = loginFails[key] || []).push(Date.now()); }
+setInterval(() => { Object.keys(loginFails).forEach(recentFails); }, LOGIN_WINDOW_MS).unref();
+
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
+  const emailKey = 'em:' + String(email || '').trim().toLowerCase();
+  const ipKey = 'ip:' + req.ip;
+  if (recentFails(ipKey) >= 20 || recentFails(emailKey) >= 8) {
+    logEvent('login_blocked', String(email || '').slice(0, 60));
+    return res.status(429).json({ error: 'Too many failed attempts. Please wait 15 minutes or reset your password.' });
+  }
   const user = db.users.find(u => u.email.toLowerCase() === (email || '').trim().toLowerCase());
-  if (!user) { logEvent('login_failed', 'unknown email: ' + String(email || '').slice(0, 60)); return res.status(401).json({ error: 'Invalid email or password' }); }
+  if (!user) { recordFail(ipKey); recordFail(emailKey); logEvent('login_failed', 'unknown email: ' + String(email || '').slice(0, 60)); return res.status(401).json({ error: 'Invalid email or password' }); }
   const match = await bcrypt.compare(password || '', user.passwordHash);
-  if (!match) { logEvent('login_failed', 'wrong password: ' + user.email, user); return res.status(401).json({ error: 'Invalid email or password' }); }
+  if (!match) { recordFail(ipKey); recordFail(emailKey); logEvent('login_failed', 'wrong password: ' + user.email, user); return res.status(401).json({ error: 'Invalid email or password' }); }
+  delete loginFails[emailKey];
 
   const token = crypto.randomBytes(24).toString('hex');
   startSession(token, user.id);
