@@ -818,7 +818,12 @@
     html[data-theme="dark"] .lb-cap { color: #c4b5fd; }
     html[data-theme="dark"] .gal-thumbs figcaption { color: #94a3b8; }
     @media (max-width: 800px) { .lb-hint { display: none; } .gal-nav { width: 38px; height: 38px; } }
-  </style>
+  
+    /* Country picker */
+    .country-pick { appearance: none; -webkit-appearance: none; max-width: 150px; text-overflow: ellipsis; cursor: pointer; font-family: inherit; padding-right: 12px; }
+    .country-pick option { color: #111; background: #fff; }
+    @media (max-width: 800px) { .country-pick { max-width: 78px; padding: 8px 6px; font-size: 11px; } }
+</style>
 </head>
 <body>
   <div class="currency-rain" id="currencyRain"></div>
@@ -836,12 +841,17 @@
         <button class="hero-nav-btn" id="messagesNavBtn" onclick="openInbox()" style="display:none;"><span class="ni">💬<span class="nav-badge" id="navMsgBadge" hidden></span></span><span class="nt">Messages</span></button>
       </div>
       <div class="hero-nav-actions">
+        <select class="hero-nav-btn country-pick" id="countryPick" onchange="onCountryChange(this.value)" title="Choose your country" aria-label="Choose country"><option value="ALL">🌍 All countries</option></select>
         <button class="hero-nav-btn theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Switch light / dark mode" aria-label="Switch light or dark mode">🌙</button>
         <a class="hero-nav-btn" id="adminNavBtn" href="admin.html" style="display:none;">🛡️ Admin</a>
         <button class="hero-nav-btn account-btn" id="accountNavBtn" onclick="openAuthDialog()">👤 Sign In</button>
       </div>
     </div>
   </nav>
+  <div id="verifyBar" style="display:none;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;background:#fef3c7;color:#78350f;padding:10px 16px;font-size:13px;font-weight:600;text-align:center;border-bottom:1px solid #fcd34d;">
+    <span>📧 Please confirm your email to post, message and report. Check your inbox and spam folder.</span>
+    <button type="button" onclick="resendVerify()" style="background:#78350f;color:#fff;border:0;border-radius:16px;padding:6px 14px;font-weight:700;font-size:12px;cursor:pointer;">Resend email</button>
+  </div>
     
 
   <div class="header">
@@ -1064,7 +1074,7 @@
     <h3 class="section-title">🏙️ Local Currency Marketplace</h3>
     <p class="marketplace-intro">Have cash in one currency and want another? Post it here so people nearby can find and connect with you directly — no app, no middleman.</p>
     <div class="marketplace-safety">
-      ⚠️ Safety first: this is a public board. Meet in safe, public places, verify identity before exchanging, and never send money before meeting in person. Neither of us can vouch for any listing here.
+      ⚠️ Safety first: this is a public board. Meet in safe, public places, check the offered rate against the live rate on this site, and never send money before meeting in person. If an offer looks too good to be true, it probably is. Use 🚩 Report on any suspicious listing. Neither of us can vouch for any listing here.
     </div>
     <div class="marketplace-grid" id="marketplaceList"></div>
 
@@ -1852,6 +1862,107 @@
     let currentUser = null;
     let authToken = localStorage.getItem('authToken') || null;
 
+    // --- Country selection: people see listings from their own country by default ---
+    let COUNTRY_LIST = {};
+    const TZ_COUNTRY = {
+      'Europe/Vilnius':'LT','Europe/Riga':'LV','Europe/Tallinn':'EE','Europe/Warsaw':'PL','Europe/Berlin':'DE','Europe/London':'GB','Europe/Paris':'FR',
+      'Europe/Madrid':'ES','Europe/Rome':'IT','Europe/Amsterdam':'NL','Europe/Brussels':'BE','Europe/Stockholm':'SE','Europe/Oslo':'NO','Europe/Copenhagen':'DK',
+      'Europe/Helsinki':'FI','Europe/Dublin':'IE','Europe/Lisbon':'PT','Europe/Vienna':'AT','Europe/Zurich':'CH','Europe/Prague':'CZ','Europe/Budapest':'HU',
+      'Europe/Bucharest':'RO','Europe/Sofia':'BG','Europe/Athens':'GR','Europe/Kiev':'UA','Europe/Kyiv':'UA','Europe/Istanbul':'TR','Europe/Minsk':'BY',
+      'Africa/Lagos':'NG','Africa/Accra':'GH','Africa/Nairobi':'KE','Africa/Johannesburg':'ZA','Africa/Cairo':'EG','Africa/Addis_Ababa':'ET','Africa/Dar_es_Salaam':'TZ',
+      'Africa/Kampala':'UG','Africa/Douala':'CM','Africa/Dakar':'SN','Africa/Abidjan':'CI','Africa/Casablanca':'MA','Africa/Algiers':'DZ','Africa/Tunis':'TN',
+      'Africa/Harare':'ZW','Africa/Lusaka':'ZM','Africa/Kigali':'RW',
+      'America/New_York':'US','America/Chicago':'US','America/Denver':'US','America/Los_Angeles':'US','America/Toronto':'CA','America/Vancouver':'CA','America/Mexico_City':'MX',
+      'America/Sao_Paulo':'BR','America/Argentina/Buenos_Aires':'AR','America/Bogota':'CO','America/Santiago':'CL','America/Jamaica':'JM',
+      'Asia/Dubai':'AE','Asia/Riyadh':'SA','Asia/Qatar':'QA','Asia/Jerusalem':'IL','Asia/Kolkata':'IN','Asia/Calcutta':'IN','Asia/Karachi':'PK','Asia/Dhaka':'BD','Asia/Colombo':'LK',
+      'Asia/Kathmandu':'NP','Asia/Shanghai':'CN','Asia/Tokyo':'JP','Asia/Seoul':'KR','Asia/Singapore':'SG','Asia/Kuala_Lumpur':'MY','Asia/Jakarta':'ID','Asia/Manila':'PH',
+      'Asia/Bangkok':'TH','Asia/Ho_Chi_Minh':'VN','Australia/Sydney':'AU','Australia/Melbourne':'AU','Australia/Perth':'AU','Pacific/Auckland':'NZ'
+    };
+    function detectCountry() {
+      try { const c = TZ_COUNTRY[Intl.DateTimeFormat().resolvedOptions().timeZone]; if (c) return c; } catch (e) {}
+      return 'ALL';
+    }
+    let selCountry = (() => {
+      try { const v = localStorage.getItem('gr_country'); if (v) return v; } catch (e) {}
+      return detectCountry();
+    })();
+    function flag(code) {
+      code = (code || 'LT').toUpperCase();
+      if (!/^[A-Z]{2}$/.test(code)) return '🌍';
+      return String.fromCodePoint(...[...code].map(ch => 127397 + ch.charCodeAt(0)));
+    }
+    function countryName(code) { return COUNTRY_LIST[code] || code; }
+    function cq() { return selCountry === 'ALL' ? '' : '?country=' + encodeURIComponent(selCountry); }
+    function here() { return selCountry === 'ALL' ? '' : ' in ' + countryName(selCountry); }
+    // country a new listing is posted in by default
+    function postCountry() { if (selCountry !== 'ALL') return selCountry; const d = detectCountry(); return d === 'ALL' ? 'LT' : d; }
+
+    function buildCountryUI(counts) {
+      counts = counts || {};
+      const codes = Object.keys(COUNTRY_LIST).sort((a, b) => (counts[b] || 0) - (counts[a] || 0) || COUNTRY_LIST[a].localeCompare(COUNTRY_LIST[b]));
+      const pick = document.getElementById('countryPick');
+      if (pick) {
+        pick.innerHTML = '<option value="ALL">🌍 All countries</option>' + codes.map(c =>
+          `<option value="${c}">${flag(c)} ${COUNTRY_LIST[c]}${counts[c] ? ' (' + counts[c] + ')' : ''}</option>`).join('');
+        pick.value = (selCountry === 'ALL' || COUNTRY_LIST[selCountry]) ? selCountry : 'ALL';
+      }
+      const formOpts = codes.slice().sort((a, b) => COUNTRY_LIST[a].localeCompare(COUNTRY_LIST[b])).map(c => `<option value="${c}">${flag(c)} ${COUNTRY_LIST[c]}</option>`).join('');
+      ['mCountry', 'rCountry', 'iCountry', 'rmCountry'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { const keep = el.value; el.innerHTML = formOpts; el.value = COUNTRY_LIST[keep] ? keep : postCountry(); }
+      });
+    }
+    // add a Country field to a form, just before the field that holds the given input
+    function injectCountryField(inputId, selId) {
+      const input = document.getElementById(inputId);
+      if (!input || document.getElementById(selId)) return;
+      const wrap = input.parentElement;
+      const field = document.createElement('div');
+      field.setAttribute('style', 'flex:1; min-width:140px;');
+      field.innerHTML = '<label class="mkt-field-label">🌍 Country</label><select id="' + selId + '"></select>';
+      wrap.parentElement.insertBefore(field, wrap);
+    }
+    function reloadAllLists() { loadMarketplace(); loadRentals(); loadItems(); loadRooms(); }
+    function onCountryChange(v) {
+      selCountry = v;
+      try { localStorage.setItem('gr_country', v); } catch (e) {}
+      ['mCountry', 'rCountry', 'iCountry', 'rmCountry'].forEach(id => { const el = document.getElementById(id); if (el) el.value = postCountry(); });
+      reloadAllLists();
+    }
+    function initCountries() {
+      injectCountryField('mLocation', 'mCountry');
+      injectCountryField('rLocation', 'rCountry');
+      injectCountryField('iLocation', 'iCountry');
+      injectCountryField('rmCity', 'rmCountry');
+      Promise.all([
+        fetch('/api/countries').then(r => r.json()),
+        fetch('/api/country-counts').then(r => r.json()).catch(() => ({}))
+      ]).then(([list, counts]) => { COUNTRY_LIST = list; buildCountryUI(counts); reloadAllLists(); }).catch(() => {});
+    }
+
+    function reportListing(type, id) {
+      if (!currentUser) { openAuthDialog(); return; }
+      const reasons = ['Scam or fraud', 'Fake or misleading', 'Wrong price', 'Offensive content', 'Already sold or gone', 'Other'];
+      const pick = prompt('Why are you reporting this listing?\n\n' + reasons.map((r, i) => (i + 1) + ' = ' + r).join('\n') + '\n\nType a number from 1 to 6:');
+      if (pick === null) return;
+      const reason = reasons[Number(pick) - 1] || 'Other';
+      fetch('/api/report', { method: 'POST', headers: apiHeaders(), body: JSON.stringify({ type, id, reason }) })
+        .then(async r => { const d = await r.json().catch(() => ({})); alert(r.ok ? d.message : (d.error || 'Could not send the report')); })
+        .catch(() => alert('Could not send the report. Please try again.'));
+    }
+    function resendVerify() {
+      fetch('/api/resend-verification', { method: 'POST', headers: apiHeaders() })
+        .then(async r => { const d = await r.json().catch(() => ({})); alert(r.ok ? (d.already ? 'Your email is already confirmed.' : d.message) : (d.error || 'Could not send the email')); if (r.ok && d.already) checkAuthOnLoad(); })
+        .catch(() => alert('Could not send the email. Please try again.'));
+    }
+    (function () {
+      const v = new URLSearchParams(location.search).get('verified');
+      if (v === null) return;
+      history.replaceState(null, '', location.pathname);
+      setTimeout(() => alert(v === '1' ? '✅ Email confirmed. You can now post, message and report.' : 'That confirmation link is invalid or has expired. Sign in and use "Resend email" to get a new one.'), 400);
+      if (v === '1' && authToken) setTimeout(() => { try { checkAuthOnLoad(); } catch (e) {} }, 600);
+    })();
+
     function apiHeaders() {
       return authToken
         ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken }
@@ -2011,6 +2122,8 @@
     function updateAccountUI() {
       setTimeout(() => { if (typeof renderItems === 'function') renderItems(); if (typeof refreshHeroStats === 'function') refreshHeroStats(); const k = currentUser ? currentUser.id : ''; if (window._roomsKey !== k) { window._roomsKey = k; ['loadRooms','loadItems','loadMarketplace','loadRentals'].forEach(f => { try { if (typeof window[f] === 'function') window[f](); } catch (e) {} }); } else if (typeof renderRooms === 'function') { renderRooms(); } }, 0);
       const btn = document.getElementById('accountNavBtn');
+      const vbar = document.getElementById('verifyBar');
+      if (vbar) vbar.style.display = (currentUser && currentUser.verified === false) ? 'flex' : 'none';
       const locked = document.getElementById('marketplaceLocked');
       const form = document.getElementById('marketplaceForm');
       const rLocked = document.getElementById('rentalsLocked');
@@ -2101,7 +2214,7 @@
 
     // --- Local currency marketplace ---
     function loadMarketplace() {
-      fetch('/api/marketplace', { headers: apiHeaders() })
+      fetch('/api/marketplace' + cq(), { headers: apiHeaders() })
         .then(res => res.json())
         .then(renderMarketplace);
     }
@@ -2120,7 +2233,7 @@
       const container = document.getElementById('marketplaceList');
       container.innerHTML = '';
       if (!listings.length) {
-        container.innerHTML = '<p class="listing-empty">No listings yet — be the first to post what you have.</p>';
+        container.innerHTML = '<p class="listing-empty">No listings yet' + here() + ' — be the first to post what you have.</p>';
         return;
       }
       listings.forEach(l => {
@@ -2146,12 +2259,13 @@
           const summary = `${l.haveAmount} ${l.haveCurrency} → ${l.wantCurrency}`;
           actions = `<div class="listing-actions">
                        <button class="listing-chat-btn" onclick="openChat('currency','${l.id}','${summary.replace(/'/g, "\\'")}','${l.ownerId}','${l.posterName.replace(/'/g, "\\'")}')">💬 Chat with ${l.posterName.split(' ')[0]}</button>
+                       <button class="listing-action-btn" title="Report this listing" onclick="reportListing('currency','${l.id}')">🚩 Report</button>
                      </div>`;
         }
 
         div.innerHTML = `
           <div class="listing-swap">${l.haveAmount} ${l.haveCurrency}<span class="arrow">→</span>${l.wantCurrency}<span class="listing-status-badge">${badgeText}</span></div>
-          <div class="listing-location">📍 ${l.location} • ${timeAgo(l.postedAt)}</div>
+          <div class="listing-location">📍 ${flag(l.country)} ${l.location} • ${timeAgo(l.postedAt)}</div>
           <div class="listing-poster">${l.posterName}</div>
           ${l.notes ? `<div class="listing-notes">${l.notes}</div>` : ''}
           <div class="listing-phone">${l.phoneHidden ? '🔒 Sign in to see contact number' : '📱 ' + l.phone}</div>
@@ -2191,7 +2305,7 @@
       fetch('/api/marketplace', {
         method: 'POST',
         headers: apiHeaders(),
-        body: JSON.stringify({ haveCurrency, haveAmount, wantCurrency, location, notes })
+        body: JSON.stringify({ haveCurrency, haveAmount, wantCurrency, location, notes, country: (document.getElementById('mCountry') || {}).value })
       })
         .then(async res => {
           const data = await res.json();
@@ -2214,7 +2328,7 @@
 
     // --- Vehicle & bike rentals marketplace (mirrors the currency marketplace) ---
     function loadRentals() {
-      fetch('/api/rentals', { headers: apiHeaders() })
+      fetch('/api/rentals' + cq(), { headers: apiHeaders() })
         .then(res => res.json())
         .then(renderRentals);
     }
@@ -2227,7 +2341,7 @@
       const container = document.getElementById('rentalsList');
       container.innerHTML = '';
       if (!listings.length) {
-        container.innerHTML = '<p class="listing-empty">No rentals listed yet — be the first to post your car, taxi service, or bike.</p>';
+        container.innerHTML = '<p class="listing-empty">No rentals listed yet' + here() + ' — be the first to post your car, taxi service, or bike.</p>';
         return;
       }
       listings.forEach(l => {
@@ -2254,13 +2368,14 @@
           const summary = `${l.vehicleType} — ${l.description}`;
           actions = `<div class="listing-actions">
                        <button class="listing-chat-btn" onclick="openChat('rental','${l.id}','${summary.replace(/'/g, "\\'")}','${l.ownerId}','${l.posterName.replace(/'/g, "\\'")}')">💬 Chat with ${l.posterName.split(' ')[0]}</button>
+                       <button class="listing-action-btn" title="Report this listing" onclick="reportListing('rental','${l.id}')">🚩 Report</button>
                      </div>`;
         }
 
         div.innerHTML = `
           <div class="listing-swap">${icon} ${l.vehicleType}<span class="listing-status-badge">${badgeText}</span></div>
           <div class="listing-notes" style="margin-top:6px;">${l.description}</div>
-          <div class="listing-location">📍 ${l.location} • ${timeAgo(l.postedAt)}</div>
+          <div class="listing-location">📍 ${flag(l.country)} ${l.location} • ${timeAgo(l.postedAt)}</div>
           <div class="listing-poster">${l.posterName} • <span style="color:#16a34a; font-weight:800;">€${l.pricePerDay}/day</span></div>
           ${l.notes ? `<div class="listing-notes">${l.notes}</div>` : ''}
           <div class="listing-phone">${l.phoneHidden ? '🔒 Sign in to see contact number' : '📱 ' + l.phone}</div>
@@ -2300,7 +2415,7 @@
       fetch('/api/rentals', {
         method: 'POST',
         headers: apiHeaders(),
-        body: JSON.stringify({ vehicleType, description, pricePerDay, location, notes })
+        body: JSON.stringify({ vehicleType, description, pricePerDay, location, notes, country: (document.getElementById('rCountry') || {}).value })
       })
         .then(async res => {
           const data = await res.json();
@@ -2342,7 +2457,7 @@
     })();
 
     function loadItems() {
-      fetch('/api/items', { headers: apiHeaders() }).then(r => r.json()).then(list => { allItems = list; renderItems(); }).catch(() => {});
+      fetch('/api/items' + cq(), { headers: apiHeaders() }).then(r => r.json()).then(list => { allItems = list; renderItems(); }).catch(() => {});
     }
 
     // Shrink each photo in the browser before upload (max 1200px, JPEG) so uploads are fast
@@ -2465,7 +2580,7 @@
         (!q || (l.title + ' ' + l.description + ' ' + l.category + ' ' + l.location).toLowerCase().includes(q)));
       container.innerHTML = '';
       if (!list.length) {
-        container.innerHTML = '<p class="listing-empty">' + (allItems.length ? 'No items match your search.' : 'No items listed yet — be the first to sell something.') + '</p>';
+        container.innerHTML = '<p class="listing-empty">' + (allItems.length ? 'No items match your search.' : 'No items listed yet' + here() + ' — be the first to sell something.') + '</p>';
         return;
       }
       list.forEach(l => {
@@ -2489,6 +2604,7 @@
           const summary = `${l.title} — €${l.price}`;
           actions = `<div class="listing-actions">
               <button class="listing-chat-btn" data-sum="${esc(summary)}" data-owner="${esc(l.ownerId)}" data-name="${esc(l.posterName)}" onclick="openChat('item','${l.id}',this.dataset.sum,this.dataset.owner,this.dataset.name)">💬 Chat with ${esc(l.posterName.split(' ')[0])}</button>
+                       <button class="listing-action-btn" title="Report this listing" onclick="reportListing('item','${l.id}')">🚩 Report</button>
             </div>`;
         }
         div.innerHTML = `
@@ -2496,7 +2612,7 @@
           <div class="listing-swap" style="margin-top:10px;">${ITEM_ICONS[l.category] || '📦'} ${esc(l.title)}<span class="listing-status-badge">${status === 'available' ? 'Available' : 'Sold'}</span></div>
           <div class="item-tags">${esc(l.category)} • ${esc(l.condition)}</div>
           ${l.description ? `<div class="listing-notes">${esc(l.description)}</div>` : ''}
-          <div class="listing-location">📍 ${esc(l.location)} • ${timeAgo(l.postedAt)}</div>
+          <div class="listing-location">📍 ${flag(l.country)} ${esc(l.location)} • ${timeAgo(l.postedAt)}</div>
           <div class="listing-poster">${esc(l.posterName)} • <span class="item-price">€${esc(l.price)}</span></div>
           <div class="listing-phone">${l.phoneHidden ? '🔒 Sign in to see contact number' : '📱 ' + esc(l.phone)}</div>
           ${actions}`;
@@ -2521,6 +2637,7 @@
         category: document.getElementById('iCategory').value,
         condition: document.getElementById('iCondition').value,
         location: document.getElementById('iLocation').value.trim(),
+        country: (document.getElementById('iCountry') || {}).value,
         description: document.getElementById('iDescription').value.trim(),
         photos: pendingPhotos
       };
@@ -2614,7 +2731,7 @@
     }
 
     function loadRooms() {
-      fetch('/api/rooms', { headers: apiHeaders() }).then(r => r.json()).then(list => { allRooms = list; renderRooms(); }).catch(() => {});
+      fetch('/api/rooms' + cq(), { headers: apiHeaders() }).then(r => r.json()).then(list => { allRooms = list; renderRooms(); }).catch(() => {});
     }
 
     function renderRooms() {
@@ -2635,7 +2752,7 @@
       if (sort === 'high') list = list.sort((a, b) => b.price - a.price);
       container.innerHTML = '';
       if (!list.length) {
-        container.innerHTML = '<p class="listing-empty">' + (allRooms.length ? 'No rooms match your search.' : 'No rooms listed yet — be the first to post one.') + '</p>';
+        container.innerHTML = '<p class="listing-empty">' + (allRooms.length ? 'No rooms match your search.' : 'No rooms listed yet' + here() + ' — be the first to post one.') + '</p>';
         return;
       }
       list.forEach(l => {
@@ -2659,6 +2776,7 @@
           const summary = `${l.title} — €${l.price}/month`;
           actions = `<div class="listing-actions">
               <button class="listing-chat-btn" data-sum="${esc(summary)}" data-owner="${esc(l.ownerId)}" data-name="${esc(l.posterName)}" onclick="openChat('room','${l.id}',this.dataset.sum,this.dataset.owner,this.dataset.name)">💬 Chat with ${esc(l.posterName.split(' ')[0])}</button>
+                       <button class="listing-action-btn" title="Report this listing" onclick="reportListing('room','${l.id}')">🚩 Report</button>
             </div>`;
         }
         const info = [];
@@ -2673,7 +2791,7 @@
         const chips = info.map(t => `<span>${t}</span>`).join('') +
           (l.amenities || []).map(a => `<span class="am">${ROOM_AMENITIES[a] || '✔️'} ${esc(a)}</span>`).join('') +
           (l.rules || []).map(a => `<span class="rl">${ROOM_RULES[a] || '✔️'} ${esc(a)}</span>`).join('');
-        const place = [l.area, l.city].filter(Boolean).join(', ') || l.location || '';
+        const place = flag(l.country) + ' ' + ([l.area, l.city].filter(Boolean).join(', ') || l.location || '');
         const addr = l.address
           ? `<div class="room-address">🏠 ${esc(l.address)}<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.address + ', ' + (l.city || ''))}" target="_blank" rel="noopener noreferrer">🗺️ Map</a></div>`
           : (l.addressHidden ? `<div class="room-address locked">🔒 Sign in to see the full street address</div>` : '');
@@ -2714,6 +2832,7 @@
         furnished: document.getElementById('rmFurnished').value,
         city: document.getElementById('rmCity').value.trim(),
         area: document.getElementById('rmArea').value.trim(),
+        country: (document.getElementById('rmCountry') || {}).value,
         address: document.getElementById('rmAddress').value.trim(),
         price: document.getElementById('rmPrice').value.trim(),
         deposit: document.getElementById('rmDeposit').value.trim(),
@@ -2922,6 +3041,7 @@
     loadRentals();
     loadItems();
     loadRooms();
+    initCountries();
 
     // --- Ask & Explore: keyword-matched smart search to real official sites ---
     const EXPLORE_KB = [

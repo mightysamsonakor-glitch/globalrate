@@ -71,6 +71,8 @@
       <div class="tabs" id="tabs">
         <button class="tab active" data-t="overview">📊 Overview</button>
         <button class="tab" data-t="activity">🕒 Activity</button>
+        <button class="tab" data-t="visits">🌐 Visitors</button>
+        <button class="tab" data-t="reports">🚩 Reports <span id="repCount"></span></button>
         <button class="tab" data-t="users">👥 Users</button>
         <button class="tab" data-t="listings">🏷️ Listings</button>
         <button class="tab" data-t="backup">💾 Backup</button>
@@ -78,6 +80,8 @@
 
       <section id="t-overview"></section>
       <section id="t-activity" class="hidden"></section>
+      <section id="t-visits" class="hidden"></section>
+      <section id="t-reports" class="hidden"></section>
       <section id="t-users" class="hidden"></section>
       <section id="t-listings" class="hidden"></section>
       <section id="t-backup" class="hidden">
@@ -143,17 +147,17 @@
     document.getElementById('tabs').addEventListener('click', e => {
       const b = e.target.closest('.tab'); if (!b) return;
       document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === b));
-      ['overview','activity','users','listings','backup'].forEach(t => $('t-' + t).classList.toggle('hidden', t !== b.dataset.t));
+      ['overview','activity','visits','reports','users','listings','backup'].forEach(t => $('t-' + t).classList.toggle('hidden', t !== b.dataset.t));
       loadTab(b.dataset.t);
     });
-    function loadTab(t) { ({ overview: loadOverview, activity: loadOverview, users: loadUsers, listings: loadListings, backup: () => {} })[t](); }
+    function loadTab(t) { ({ overview: loadOverview, activity: loadOverview, visits: loadVisits, reports: loadReports, users: loadUsers, listings: loadListings, backup: () => {} })[t](); }
 
     const EVENT_LABEL = {
       register: ['🆕 New account', 'good'], login: ['🔑 Login', ''], login_failed: ['⚠️ Failed login', 'bad'],
       marketplace_posted: ['💱 Currency listing', 'good'], rentals_posted: ['🚗 Rental listing', 'good'], items_posted: ['📦 Item listed', 'good'], rooms_posted: ['🏠 Room listed', 'good'],
       marketplace_deleted: ['🗑️ Currency listing removed', 'warn'], rentals_deleted: ['🗑️ Rental removed', 'warn'], items_deleted: ['🗑️ Item removed', 'warn'], rooms_deleted: ['🗑️ Room removed', 'warn'],
       message: ['💬 Chat message', ''], admin_unlocked: ['🛡️ Admin unlocked', ''], admin_unlock_failed: ['🚨 Admin key failed', 'bad'],
-      user_deleted_by_admin: ['🛡️ User deleted', 'warn'], listing_removed_by_admin: ['🛡️ Listing removed', 'warn'],
+      user_deleted_by_admin: ['🛡️ User deleted', 'warn'], listing_removed_by_admin: ['🛡️ Listing removed', 'warn'], listing_reported: ['🚩 Listing reported', 'warn'], report_dismissed: ['✅ Report dismissed', ''], email_verified: ['📧 Email confirmed', 'good'],
       password_reset_requested: ['🔑 Password reset requested', ''], password_reset_done: ['🔑 Password reset done', 'good'], reset_link_by_admin: ['🔗 Reset link created', 'warn'],
       backup_downloaded: ['💾 Backup downloaded', ''], backup_restored: ['♻️ Backup restored', 'warn']
     };
@@ -226,6 +230,64 @@
       try { await api('/api/admin/users/' + id, { method: 'DELETE' }); toast('User deleted'); loadUsers(); } catch (e) { toast(e.message); }
     }
 
+
+    let visitsData = null, visitDays = 7;
+    async function loadVisits(days) {
+      if (days) visitDays = days;
+      visitsData = await api('/api/admin/visits?days=' + visitDays);
+      renderVisits();
+    }
+    function renderVisits() {
+      const d = visitsData; if (!d) return;
+      const q = ($('visitQ') ? $('visitQ').value : '').toLowerCase();
+      const only = $('visitF') ? $('visitF').value : '';
+      const rows = d.rows.filter(v => (!q || (v.ip + ' ' + v.os + ' ' + v.browser + ' ' + (v.user ? v.user.name + ' ' + v.user.email : '')).toLowerCase().includes(q)) &&
+        (only === '' || (only === 'mobile' && v.mobile && !v.bot) || (only === 'user' && v.user) || (only === 'bot' && v.bot) || (only === 'human' && !v.bot)));
+      const s = d.summary;
+      $('t-visits').innerHTML = `
+        <div class="grid">
+          <div class="stat"><b>${s.uniqueIps}</b><span>Unique IP addresses</span></div>
+          <div class="stat"><b>${s.records}</b><span>Visitor records</span></div>
+          <div class="stat"><b>${s.mobile}</b><span>On phones</span></div>
+          <div class="stat"><b>${s.signedIn}</b><span>Signed-in users</span></div>
+          <div class="stat"><b>${s.bots}</b><span>Bots / crawlers</span></div>
+        </div>
+        <div class="panel"><h2>Site visitors — last ${d.days} day${d.days > 1 ? 's' : ''}</h2>
+          <div class="toolbar">
+            <input id="visitQ" placeholder="Search IP, device, name…" value="${esc(q)}" oninput="renderVisits()">
+            <select id="visitF" onchange="renderVisits()">
+              <option value="">Everyone</option><option value="human" ${only==='human'?'selected':''}>Humans only</option><option value="mobile" ${only==='mobile'?'selected':''}>Phones only</option>
+              <option value="user" ${only==='user'?'selected':''}>Signed-in only</option><option value="bot" ${only==='bot'?'selected':''}>Bots only</option></select>
+            <select onchange="loadVisits(Number(this.value))">${[1, 7, 30, 90].filter(n => n <= d.keepDays).map(n => `<option value="${n}" ${n===d.days?'selected':''}>${n === 1 ? 'Today' : 'Last ' + n + ' days'}</option>`).join('')}</select>
+          </div>
+          <table><tr><th>IP address</th><th>Device</th><th>Signed in as</th><th>Visits</th><th>Last seen</th></tr>
+          ${rows.map(v => `<tr><td><b>${esc(v.ip)}</b><div class="note">${esc(v.day)}</div></td>
+            <td>${v.bot ? '🤖' : v.mobile ? '📱' : '💻'} ${esc(v.os)} · ${esc(v.browser)}</td>
+            <td>${v.user ? esc(v.user.name) + '<div class="note">' + esc(v.user.email) + '</div>' : '<span class="note">visitor</span>'}</td>
+            <td>${v.hits}</td><td>${ago(v.last)}</td></tr>`).join('') || '<tr><td colspan="5" class="note">No visitors recorded yet.</td></tr>'}
+          </table>
+          <p class="note" style="margin-top:12px;">One row per device per day. Records are kept for ${d.keepDays} days, then deleted automatically. An IP address shows the network a visit came from (home Wi-Fi, mobile data, a VPN), not the exact person, and many phones on mobile data share one IP. A name appears only after that person signed in from that device. IP addresses count as personal data under GDPR, so mention this logging in your privacy notice.</p>
+        </div>`;
+      const i = $('visitQ'); if (q && i) { i.focus(); i.setSelectionRange(q.length, q.length); }
+    }
+
+
+    async function loadReports() {
+      const list = await api('/api/admin/reports');
+      $('repCount').textContent = list.length ? '(' + list.length + ')' : '';
+      $('t-reports').innerHTML = `<div class="panel"><h2>Reported listings (${list.length})</h2>
+        ${list.length ? `<table><tr><th>Listing</th><th>Reports</th><th>Status</th><th></th></tr>${list.map(g => `<tr>
+          <td><b>${esc(g.title)}</b><div class="note">${esc(g.type)} · by ${esc(g.poster)} ${esc(g.posterEmail)}</div></td>
+          <td>${g.reports.map(r => `<div class="note">• ${esc(r.reason)} <i>(${esc(r.reporter)}, ${ago(r.at)})</i>${r.note ? ' — ' + esc(r.note) : ''}</div>`).join('')}</td>
+          <td>${g.hidden ? '<span class="pill bad">Hidden</span>' : '<span class="pill warn">Visible</span>'}</td>
+          <td><button class="btn" onclick="dismissReport('${g.type}','${g.listingId}')">Keep &amp; dismiss</button>
+              <button class="btn danger" onclick="delListing('${g.type}','${g.listingId}',loadReports)">Remove listing</button></td></tr>`).join('')}</table>`
+        : '<p class="note">No open reports. A listing is hidden automatically once 3 different people report it.</p>'}</div>`;
+    }
+    async function dismissReport(type, id) {
+      try { await api('/api/admin/reports/dismiss', { method: 'POST', body: JSON.stringify({ type, id }) }); toast('Dismissed — listing is visible again'); loadReports(); } catch (e) { toast(e.message); }
+    }
+
     let listingsCache = [];
     async function loadListings() { listingsCache = await api('/api/admin/listings'); renderListings(); }
     function renderListings() {
@@ -243,9 +305,9 @@
         </table></div>`;
       const i = $('listQ'); if (q) { i.focus(); i.setSelectionRange(q.length, q.length); }
     }
-    async function delListing(type, id) {
+    async function delListing(type, id, after) {
       if (!confirm('Remove this listing (and its photos)? This cannot be undone.')) return;
-      try { await api(`/api/admin/listings/${type}/${id}`, { method: 'DELETE' }); toast('Listing removed'); loadListings(); } catch (e) { toast(e.message); }
+      try { await api(`/api/admin/listings/${type}/${id}`, { method: 'DELETE' }); toast('Listing removed'); (after || loadListings)(); } catch (e) { toast(e.message); }
     }
 
     async function downloadBackup() {

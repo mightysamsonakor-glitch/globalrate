@@ -11,13 +11,30 @@ app.set('trust proxy', 1); // behind Render's proxy, so req.ip is the real visit
 const PORT = process.env.PORT || 3000;
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'db.json');
 
-app.use(express.static('public'));
 // Uploaded item photos live here (put it on a persistent disk in production via UPLOADS_DIR)
 const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(path.dirname(process.env.DB_PATH || path.join(__dirname, 'data', 'db.json')), 'uploads');
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 app.use('/uploads', express.static(UPLOADS_DIR, { maxAge: '7d' }));
 app.use('/api/admin/import', express.json({ limit: '120mb' }));
 app.use(express.json({ limit: '15mb' }));
+
+// Basic security headers (no extra package needed)
+app.use((req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'SAMEORIGIN',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Strict-Transport-Security': 'max-age=15552000; includeSubDomains',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+  });
+  res.removeHeader('X-Powered-By');
+  next();
+});
+// Generous overall cap per IP so one device cannot hammer the API
+app.use('/api', (req, res, next) => {
+  if (tooMany('api:' + clientIp(req), 900, 10 * 60 * 1000)) return res.status(429).json({ error: 'Too many requests. Please slow down for a few minutes.' });
+  next();
+});
 
 // --- Email setup: sends through Zoho Mail (globalrate.space), with Gmail as a fallback ---
 let mailer = null;
@@ -147,7 +164,7 @@ async function sendListingEmail(user, kind, l) {
 function loadDB() {
   if (!fs.existsSync(DB_PATH)) {
     fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-    const initial = { users: [], marketplace: [], rentals: [], items: [], rooms: [], messages: [], activity: [], stats: { visits: {} } };
+    const initial = { users: [], marketplace: [], rentals: [], items: [], rooms: [], messages: [], activity: [], reports: [], stats: { visits: {} } };
     fs.writeFileSync(DB_PATH, JSON.stringify(initial, null, 2));
     return initial;
   }
@@ -162,6 +179,7 @@ function loadDB() {
   data.stats = data.stats || { visits: {} };
   data.stats.visits = data.stats.visits || {};
   data.messages = data.messages || [];
+  data.reports = data.reports || [];
   return data;
 }
 function saveDB() {
@@ -221,6 +239,7 @@ function authMiddleware(req, res, next) {
   const user = userId && db.users.find(u => u.id === userId);
   if (!user) return res.status(401).json({ error: 'Please log in to continue' });
   req.user = user;
+  touchVisit(req, user);
   next();
 }
 
@@ -241,7 +260,7 @@ function isAdminReq(req) {
 }
 function publicUser(user, req) {
   return { id: user.id, name: user.name, phone: user.phone, email: user.email,
-           canAdmin: canAdmin(user), isAdmin: req ? isAdminReq(req) : false };
+           canAdmin: canAdmin(user), isAdmin: req ? isAdminReq(req) : false, verified: user.verified !== false };
 }
 function adminMiddleware(req, res, next) {
   authMiddleware(req, res, () => {
@@ -260,10 +279,72 @@ function logEvent(type, detail, user) {
   if (db.activity.length > 1000) db.activity.length = 1000;
 }
 
+
+// ---------------------------------------------------------------------------
+// Visitor log: one record per device (IP + browser) per day, kept 90 days.
+// Stored in visits.json next to the database (not in the public folder, not in backups).
+// ---------------------------------------------------------------------------
+const VISITS_PATH = process.env.VISITS_PATH || path.join(path.dirname(DB_PATH), 'visits.json');
+const VISIT_KEEP_DAYS = Number(process.env.VISIT_KEEP_DAYS) || 90;
+const VISIT_MAX = 50000;
+let visitLog = [];
+try { visitLog = JSON.parse(fs.readFileSync(VISITS_PATH, 'utf8')); if (!Array.isArray(visitLog)) visitLog = []; } catch (e) { visitLog = []; }
+const visitIndex = new Map();
+visitLog.forEach(v => visitIndex.set(v.key, v));
+let visitsDirty = false;
+
+function clientIp(req) { return String((req && (req.ip || (req.socket && req.socket.remoteAddress))) || 'unknown').replace(/^::ffff:/, ''); }
+function parseUA(ua) {
+  ua = String(ua || '');
+  const bot = /bot|crawl|spider|slurp|preview|monitor|uptime|curl|wget|headless/i.test(ua);
+  let os = 'Other';
+  if (/iPhone/i.test(ua)) os = 'iPhone'; else if (/iPad/i.test(ua)) os = 'iPad'; else if (/Android/i.test(ua)) os = 'Android';
+  else if (/Windows/i.test(ua)) os = 'Windows'; else if (/Mac OS X|Macintosh/i.test(ua)) os = 'Mac'; else if (/CrOS/i.test(ua)) os = 'ChromeOS'; else if (/Linux/i.test(ua)) os = 'Linux';
+  let browser = 'Other';
+  if (/Edg\//i.test(ua)) browser = 'Edge'; else if (/OPR\/|Opera/i.test(ua)) browser = 'Opera'; else if (/SamsungBrowser/i.test(ua)) browser = 'Samsung';
+  else if (/Firefox|FxiOS/i.test(ua)) browser = 'Firefox'; else if (/Chrome|CriOS/i.test(ua)) browser = 'Chrome'; else if (/Safari/i.test(ua)) browser = 'Safari';
+  return { os, browser, mobile: /iPhone|Android|Mobile/i.test(ua), bot };
+}
+function recordVisit(req) {
+  const ip = clientIp(req), ua = String(req.headers['user-agent'] || '').slice(0, 300);
+  const day = new Date().toISOString().slice(0, 10);
+  const key = day + '|' + ip + '|' + crypto.createHash('md5').update(ua).digest('hex').slice(0, 8);
+  const now = new Date().toISOString();
+  let v = visitIndex.get(key);
+  if (v) { v.last = now; v.hits++; }
+  else {
+    v = { key, day, ip, first: now, last: now, hits: 1, ...parseUA(ua), user: null };
+    visitLog.push(v); visitIndex.set(key, v);
+    if (visitLog.length > VISIT_MAX) visitLog.splice(0, visitLog.length - VISIT_MAX).forEach(o => visitIndex.delete(o.key));
+  }
+  visitsDirty = true;
+  return v;
+}
+// when a signed-in user makes a request, attach their name to today's record for this device
+function touchVisit(req, user) {
+  try {
+    const ua = String(req.headers['user-agent'] || '').slice(0, 300);
+    const key = new Date().toISOString().slice(0, 10) + '|' + clientIp(req) + '|' + crypto.createHash('md5').update(ua).digest('hex').slice(0, 8);
+    const v = visitIndex.get(key) || recordVisit(req);
+    if (!v.user || v.user.id !== user.id) { v.user = { id: user.id, name: user.name, email: user.email }; visitsDirty = true; }
+  } catch (e) {}
+}
+function flushVisits() {
+  if (!visitsDirty) return;
+  visitsDirty = false;
+  const cutoff = new Date(Date.now() - VISIT_KEEP_DAYS * 86400000).toISOString().slice(0, 10);
+  visitLog = visitLog.filter(v => v.day >= cutoff);
+  visitIndex.clear(); visitLog.forEach(v => visitIndex.set(v.key, v));
+  try { fs.writeFileSync(VISITS_PATH + '.tmp', JSON.stringify(visitLog)); fs.renameSync(VISITS_PATH + '.tmp', VISITS_PATH); fs.chmodSync(VISITS_PATH, 0o600); } catch (e) { console.error('Could not save visits:', e.message); }
+}
+setInterval(flushVisits, 2 * 60 * 1000).unref();
+['SIGTERM', 'SIGINT'].forEach(sig => process.on(sig, () => { flushVisits(); process.exit(0); }));
+
 // Count daily page visits (in memory, flushed to disk every few minutes)
 let statsDirty = false;
 app.use((req, res, next) => {
   if (req.method === 'GET' && (req.path === '/' || req.path === '/index.html')) {
+    recordVisit(req);
     const day = new Date().toISOString().slice(0, 10);
     db.stats.visits[day] = (db.stats.visits[day] || 0) + 1;
     statsDirty = true;
@@ -271,6 +352,7 @@ app.use((req, res, next) => {
   next();
 });
 setInterval(() => { if (statsDirty) { statsDirty = false; saveDB(); } }, 5 * 60 * 1000);
+app.use(express.static('public')); // after the visit counter so page loads are counted
 
 // --- Historical NGN official vs parallel rates ---
 let rates = [
@@ -356,7 +438,29 @@ app.post('/api/providers', (req, res) => {
 });
 
 // --- Accounts ---
-app.post('/api/register', async (req, res) => {
+function issueVerifyToken(user) {
+  const token = crypto.randomBytes(32).toString('hex');
+  user.verifyTokenHash = hashToken(token);
+  user.verifyExpires = Date.now() + 48 * 3600 * 1000;
+  return token;
+}
+async function sendVerifyEmail(user, link) {
+  if (!mailer) return;
+  const safeName = String(user.name).replace(/[<>&]/g, '');
+  try {
+    await mailer.sendMail({
+      from: `"GlobalRate" <${mailFromAddress}>`, to: user.email,
+      subject: 'Confirm your email for GlobalRate',
+      text: `Hi ${user.name},\n\nPlease confirm your email to start posting and messaging on GlobalRate:\n${link}\n\nThe link works for 48 hours. If you did not create this account, ignore this email.\n\n— GlobalRate`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#1e293b">
+        <h2 style="color:#6d28d9">Confirm your email, ${safeName}</h2>
+        <p>Tap the button to confirm your email and start posting and messaging on GlobalRate.</p>
+        <p style="margin:24px 0"><a href="${link}" style="background:#7c3aed;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Confirm my email</a></p>
+        <p style="color:#64748b;font-size:13px">The link works for 48 hours. If you did not create this account, you can ignore this email.</p></div>`
+    });
+  } catch (err) { console.log('Could not send verification email to', user.email, '-', err.message); }
+}
+app.post('/api/register', limitBy('reg', 6, 3600000, false), async (req, res) => {
   const { name, email, phone, password } = req.body;
   if (!name || !email || !phone || !password) {
     return res.status(400).json({ error: 'Name, email, phone, and password are required' });
@@ -376,46 +480,38 @@ app.post('/api/register', async (req, res) => {
     passwordHash,
     createdAt: new Date().toISOString()
   };
+  // Confirm by email when email sending works; admins and no-email setups are confirmed automatically
+  user.verified = !mailer || canAdmin(user);
+  const vToken = user.verified ? null : issueVerifyToken(user);
   db.users.push(user);
   saveDB();
   sendWelcomeEmail(user);
+  if (vToken) sendVerifyEmail(user, siteBase(req) + '/api/verify-email?token=' + vToken);
 
   const token = crypto.randomBytes(24).toString('hex');
   startSession(token, user.id);
-  logEvent('register', user.email, user);
+  logEvent('register', user.email + ' · IP ' + clientIp(req), user);
   saveDB();
   res.status(201).json({ token, user: publicUser(user) });
 });
 
-// --- Login rate limit: only failed attempts count, so normal users are never blocked ---
-const LOGIN_WINDOW_MS = 15 * 60 * 1000;
-const loginFails = {}; // key -> [timestamps of failed logins]
-function recentFails(key) {
-  const now = Date.now();
-  const list = (loginFails[key] || []).filter(t => now - t < LOGIN_WINDOW_MS);
-  if (list.length) loginFails[key] = list; else delete loginFails[key];
-  return list.length;
-}
-function recordFail(key) { (loginFails[key] = loginFails[key] || []).push(Date.now()); }
-setInterval(() => { Object.keys(loginFails).forEach(recentFails); }, LOGIN_WINDOW_MS).unref();
-
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
-  const emailKey = 'em:' + String(email || '').trim().toLowerCase();
-  const ipKey = 'ip:' + req.ip;
-  if (recentFails(ipKey) >= 20 || recentFails(emailKey) >= 8) {
-    logEvent('login_blocked', String(email || '').slice(0, 60));
-    return res.status(429).json({ error: 'Too many failed attempts. Please wait 15 minutes or reset your password.' });
+  const ipKey = 'loginfail-ip:' + clientIp(req), emKey = 'loginfail-em:' + clientIp(req) + ':' + String(email || '').trim().toLowerCase(); // per IP + email, so a stranger cannot lock you out of your own account
+  const failedRecently = k => (resetAttempts[k] || []).filter(t => Date.now() - t < 15 * 60 * 1000).length;
+  if (failedRecently(ipKey) >= 20 || failedRecently(emKey) >= 5) {
+    return res.status(429).json({ error: 'Too many failed sign-in attempts. Please wait 15 minutes, or use "Forgot your password?".' });
   }
+  const noteFail = () => { [ipKey, emKey].forEach(k => { (resetAttempts[k] = resetAttempts[k] || []).push(Date.now()); }); };
   const user = db.users.find(u => u.email.toLowerCase() === (email || '').trim().toLowerCase());
-  if (!user) { recordFail(ipKey); recordFail(emailKey); logEvent('login_failed', 'unknown email: ' + String(email || '').slice(0, 60)); return res.status(401).json({ error: 'Invalid email or password' }); }
+  if (!user) { noteFail(); logEvent('login_failed', 'unknown email: ' + String(email || '').slice(0, 60) + ' · IP ' + clientIp(req)); return res.status(401).json({ error: 'Invalid email or password' }); }
   const match = await bcrypt.compare(password || '', user.passwordHash);
-  if (!match) { recordFail(ipKey); recordFail(emailKey); logEvent('login_failed', 'wrong password: ' + user.email, user); return res.status(401).json({ error: 'Invalid email or password' }); }
-  delete loginFails[emailKey];
+  if (!match) { noteFail(); logEvent('login_failed', 'wrong password: ' + user.email + ' · IP ' + clientIp(req), user); return res.status(401).json({ error: 'Invalid email or password' }); }
 
+  delete resetAttempts[emKey];
   const token = crypto.randomBytes(24).toString('hex');
   startSession(token, user.id);
-  logEvent('login', user.email, user);
+  logEvent('login', user.email + ' · IP ' + clientIp(req), user);
   saveDB();
   res.json({ token, user: publicUser(user) });
 });
@@ -466,6 +562,22 @@ async function sendResetEmail(user, link) {
   }
 }
 
+app.get('/api/verify-email', (req, res) => {
+  const h = hashToken(req.query.token || '');
+  const user = req.query.token && db.users.find(u => u.verifyTokenHash && u.verifyTokenHash === h && u.verifyExpires > Date.now());
+  if (!user) return res.redirect('/?verified=0');
+  user.verified = true; delete user.verifyTokenHash; delete user.verifyExpires;
+  logEvent('email_verified', user.email, user);
+  saveDB();
+  res.redirect('/?verified=1');
+});
+app.post('/api/resend-verification', authMiddleware, limitBy('resendv', 3, 3600000), async (req, res) => {
+  if (req.user.verified !== false) return res.json({ ok: true, already: true });
+  const token = issueVerifyToken(req.user);
+  saveDB();
+  await sendVerifyEmail(req.user, siteBase(req) + '/api/verify-email?token=' + token);
+  res.json({ ok: true, message: 'Confirmation email sent. Check your inbox and spam folder.' });
+});
 app.post('/api/forgot-password', (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const generic = { ok: true, message: 'If an account exists for that email, a reset link is on its way. Check your inbox and spam folder.' };
@@ -482,6 +594,22 @@ app.post('/api/forgot-password', (req, res) => {
   res.json(generic);
 });
 
+setInterval(() => { const now = Date.now(); Object.keys(resetAttempts).forEach(k => { resetAttempts[k] = resetAttempts[k].filter(t => now - t < 3600000); if (!resetAttempts[k].length) delete resetAttempts[k]; }); }, 10 * 60 * 1000).unref();
+// per-user / per-IP limit middleware: limitBy('post', 20, 3600000)
+function limitBy(name, max, windowMs, perUser = true) {
+  return (req, res, next) => {
+    const who = perUser && req.user ? 'u' + req.user.id : 'ip' + clientIp(req);
+    if (tooMany(name + ':' + who, max, windowMs)) return res.status(429).json({ error: 'Too many attempts. Please wait a while and try again.' });
+    next();
+  };
+}
+// Accounts must confirm their email before posting, messaging or reporting (older accounts count as confirmed)
+function requireVerified(req, res, next) {
+  if (req.user && req.user.verified === false) {
+    return res.status(403).json({ error: 'Please confirm your email first. Check your inbox (and spam) for the link, or use "Resend email" in the yellow bar at the top.', code: 'unverified' });
+  }
+  next();
+}
 app.post('/api/reset-password', async (req, res) => {
   const { token, password } = req.body || {};
   if (tooMany('rp:' + req.ip, 30, 3600000)) return res.status(429).json({ error: 'Too many attempts. Try again later.' });
@@ -492,6 +620,7 @@ app.post('/api/reset-password', async (req, res) => {
   if (!user) return res.status(400).json({ error: 'This reset link has expired or was already used. Please request a new one.' });
   user.passwordHash = await bcrypt.hash(String(password), 10);
   delete user.resetTokenHash; delete user.resetExpires;
+  user.verified = true; delete user.verifyTokenHash;
   Object.keys(sessions).forEach(t => { if (sessions[t] === user.id) endSession(t); });
   const session = crypto.randomBytes(24).toString('hex');
   startSession(session, user.id);
@@ -516,9 +645,44 @@ const maskPhones = (list, req) => {
   if (liveSession(tokenOf(req))) return list;
   return list.map(x => ({ ...x, phone: '', phoneHidden: !!x.phone }));
 };
-app.get('/api/marketplace', (req, res) => res.json(maskPhones(db.marketplace, req)));
 
-app.post('/api/marketplace', authMiddleware, (req, res) => {
+// ---------------------------------------------------------------------------
+// Countries (listings carry an ISO-2 country code; old listings count as Lithuania)
+// ---------------------------------------------------------------------------
+const DEFAULT_COUNTRY = 'LT';
+const COUNTRIES = {
+  AL:'Albania',AT:'Austria',BE:'Belgium',BG:'Bulgaria',BY:'Belarus',CH:'Switzerland',CY:'Cyprus',CZ:'Czechia',DE:'Germany',DK:'Denmark',
+  EE:'Estonia',ES:'Spain',FI:'Finland',FR:'France',GB:'United Kingdom',GR:'Greece',HR:'Croatia',HU:'Hungary',IE:'Ireland',IS:'Iceland',
+  IT:'Italy',LT:'Lithuania',LU:'Luxembourg',LV:'Latvia',MD:'Moldova',MT:'Malta',NL:'Netherlands',NO:'Norway',PL:'Poland',PT:'Portugal',
+  RO:'Romania',RS:'Serbia',SE:'Sweden',SI:'Slovenia',SK:'Slovakia',UA:'Ukraine',TR:'Turkey',
+  NG:'Nigeria',GH:'Ghana',KE:'Kenya',ZA:'South Africa',EG:'Egypt',ET:'Ethiopia',TZ:'Tanzania',UG:'Uganda',CM:'Cameroon',SN:'Senegal',
+  CI:"Côte d'Ivoire",MA:'Morocco',DZ:'Algeria',TN:'Tunisia',ZW:'Zimbabwe',ZM:'Zambia',RW:'Rwanda',
+  US:'United States',CA:'Canada',MX:'Mexico',BR:'Brazil',AR:'Argentina',CO:'Colombia',CL:'Chile',JM:'Jamaica',
+  AE:'United Arab Emirates',SA:'Saudi Arabia',QA:'Qatar',IL:'Israel',IN:'India',PK:'Pakistan',BD:'Bangladesh',LK:'Sri Lanka',NP:'Nepal',
+  CN:'China',JP:'Japan',KR:'South Korea',SG:'Singapore',MY:'Malaysia',ID:'Indonesia',PH:'Philippines',TH:'Thailand',VN:'Vietnam',
+  AU:'Australia',NZ:'New Zealand'
+};
+const cc = v => { const c = String(v == null ? '' : v).trim().toUpperCase(); return COUNTRIES[c] ? c : null; };
+// ?country=XX filters to one country; missing / ALL returns everything
+const forCountry = (list, req) => {
+  const c = cc(req.query && req.query.country);
+  const me = liveSession(tokenOf(req));
+  const visible = list.filter(x => !x.hidden || x.ownerId === me); // reported listings are hidden from others until reviewed
+  return c ? visible.filter(x => (x.country || DEFAULT_COUNTRY) === c) : visible;
+};
+app.get('/api/countries', (req, res) => res.json(COUNTRIES));
+// Listing counts per country so the picker can show where the community is active
+app.get('/api/country-counts', (req, res) => {
+  const counts = {};
+  [db.marketplace, db.rentals, db.items, db.rooms].forEach(l => (l || []).forEach(x => {
+    const c = x.country || DEFAULT_COUNTRY; counts[c] = (counts[c] || 0) + 1;
+  }));
+  res.json(counts);
+});
+
+app.get('/api/marketplace', (req, res) => res.json(maskPhones(forCountry(db.marketplace, req), req)));
+
+app.post('/api/marketplace', authMiddleware, requireVerified, limitBy('post', 20, 3600000), (req, res) => {
   const { haveCurrency, haveAmount, wantCurrency, location, notes } = req.body;
   if (!haveCurrency || !haveAmount || !wantCurrency || !location) {
     return res.status(400).json({ error: 'Currencies, amount, and location are required' });
@@ -528,6 +692,7 @@ app.post('/api/marketplace', authMiddleware, (req, res) => {
     ownerId: req.user.id,
     posterName: req.user.name,
     phone: req.user.phone,
+    country: cc(req.body.country) || DEFAULT_COUNTRY,
     haveCurrency: haveCurrency.trim().toUpperCase(),
     haveAmount: Number(haveAmount),
     wantCurrency: wantCurrency.trim().toUpperCase(),
@@ -567,9 +732,9 @@ app.delete('/api/marketplace/:id', authMiddleware, (req, res) => {
 });
 
 // --- Vehicle & bike rentals marketplace (same pattern as currency marketplace) ---
-app.get('/api/rentals', (req, res) => res.json(maskPhones(db.rentals, req)));
+app.get('/api/rentals', (req, res) => res.json(maskPhones(forCountry(db.rentals, req), req)));
 
-app.post('/api/rentals', authMiddleware, (req, res) => {
+app.post('/api/rentals', authMiddleware, requireVerified, limitBy('post', 20, 3600000), (req, res) => {
   const { vehicleType, description, pricePerDay, location, notes } = req.body;
   if (!vehicleType || !description || !pricePerDay || !location) {
     return res.status(400).json({ error: 'Vehicle type, description, price, and location are required' });
@@ -579,6 +744,7 @@ app.post('/api/rentals', authMiddleware, (req, res) => {
     ownerId: req.user.id,
     posterName: req.user.name,
     phone: req.user.phone,
+    country: cc(req.body.country) || DEFAULT_COUNTRY,
     vehicleType: vehicleType.trim(),
     description: description.trim(),
     pricePerDay: Number(pricePerDay),
@@ -651,9 +817,9 @@ function deletePhotoFiles(urls) {
   });
 }
 
-app.get('/api/items', (req, res) => res.json(maskPhones(db.items, req)));
+app.get('/api/items', (req, res) => res.json(maskPhones(forCountry(db.items, req), req)));
 
-app.post('/api/items', authMiddleware, (req, res) => {
+app.post('/api/items', authMiddleware, requireVerified, limitBy('post', 20, 3600000), (req, res) => {
   const { title, category, price, condition, location, description, photos } = req.body;
   if (!title || !price || !location) {
     return res.status(400).json({ error: 'Title, price and location are required' });
@@ -664,6 +830,7 @@ app.post('/api/items', authMiddleware, (req, res) => {
     ownerId: req.user.id,
     posterName: req.user.name,
     phone: req.user.phone,
+    country: cc(req.body.country) || DEFAULT_COUNTRY,
     title: String(title).trim().slice(0, 100),
     category: ITEM_CATEGORIES.includes(category) ? category : 'Other',
     price: Number(price),
@@ -721,10 +888,10 @@ function roomForViewer(room, signedIn) {
 
 app.get('/api/rooms', (req, res) => {
   const signedIn = !!liveSession(tokenOf(req));
-  res.json(db.rooms.map(r => roomForViewer(r, signedIn)));
+  res.json(forCountry(db.rooms, req).map(r => roomForViewer(r, signedIn)));
 });
 
-app.post('/api/rooms', authMiddleware, (req, res) => {
+app.post('/api/rooms', authMiddleware, requireVerified, limitBy('post', 20, 3600000), (req, res) => {
   const b = req.body || {};
   const clean = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
   const title = clean(b.title, 100), city = clean(b.city, 60), area = clean(b.area || b.location, 80), address = clean(b.address, 140);
@@ -747,6 +914,7 @@ app.post('/api/rooms', authMiddleware, (req, res) => {
     ownerId: req.user.id,
     posterName: req.user.name,
     phone: req.user.phone,
+    country: cc(b.country) || DEFAULT_COUNTRY,
     title,
     roomType: pick(ROOM_TYPES, b.roomType, ROOM_TYPES[0]),
     price: Number(b.price),
@@ -796,6 +964,38 @@ app.delete('/api/rooms/:id', authMiddleware, (req, res) => {
   res.status(204).end();
 });
 
+
+// --- Reports: users flag scams; 3 different reporters hide a listing until you review it ---
+const REPORT_REASONS = ['Scam or fraud', 'Fake or misleading', 'Wrong price', 'Offensive content', 'Already sold or gone', 'Other'];
+const REPORT_HIDE_AT = 3;
+app.post('/api/report', authMiddleware, requireVerified, limitBy('report', 20, 3600000), (req, res) => {
+  const type = String((req.body || {}).type || ''), id = String((req.body || {}).id || '');
+  const arr = LISTING_TYPES[type] && db[LISTING_TYPES[type]];
+  const listing = arr && arr.find(l => l.id === id);
+  if (!listing) return res.status(404).json({ error: 'Listing not found' });
+  if (listing.ownerId === req.user.id) return res.status(400).json({ error: 'You cannot report your own listing' });
+  db.reports = db.reports || [];
+  if (db.reports.some(r => r.listingId === id && r.type === type && r.reporterId === req.user.id && !r.resolved)) {
+    return res.status(409).json({ error: 'You already reported this listing. Thank you, we will review it.' });
+  }
+  const reason = REPORT_REASONS.includes(req.body.reason) ? req.body.reason : 'Other';
+  db.reports.unshift({
+    id: crypto.randomBytes(6).toString('hex'), type, listingId: id, reporterId: req.user.id, reporterName: req.user.name,
+    reason, note: String(req.body.note || '').trim().slice(0, 300), at: new Date().toISOString(), resolved: false
+  });
+  if (db.reports.length > 2000) db.reports.length = 2000;
+  const open = new Set(db.reports.filter(r => r.listingId === id && r.type === type && !r.resolved).map(r => r.reporterId));
+  let hidden = false;
+  if (open.size >= REPORT_HIDE_AT && !listing.hidden) { listing.hidden = true; hidden = true; }
+  logEvent('listing_reported', `${reason}: ${listing.title || listing.description || listing.haveCurrency || id}${hidden ? ' — AUTO-HIDDEN' : ''}`, req.user);
+  saveDB();
+  if (hidden && mailer && ADMIN_EMAILS[0]) {
+    mailer.sendMail({ from: `"GlobalRate" <${mailFromAddress}>`, to: ADMIN_EMAILS[0], subject: 'A listing was hidden after reports',
+      text: `A ${type} listing by ${listing.posterName} was reported by ${open.size} people and is now hidden. Review it in your admin panel (Reports tab).` }).catch(() => {});
+  }
+  res.status(201).json({ ok: true, message: 'Thanks for reporting. We will review this listing.' });
+});
+
 // ---------------------------------------------------------------------------
 // Admin API (all routes need a logged-in admin who has entered ADMIN_KEY)
 // ---------------------------------------------------------------------------
@@ -814,12 +1014,12 @@ app.post('/api/admin/unlock', authMiddleware, (req, res) => {
     f.count += 1;
     if (f.count >= 5) { f.until = Date.now() + 15 * 60 * 1000; f.count = 0; }
     adminFailures[req.user.id] = f;
-    logEvent('admin_unlock_failed', req.user.email, req.user);
+    logEvent('admin_unlock_failed', req.user.email + ' · IP ' + clientIp(req), req.user);
     return res.status(401).json({ error: 'Wrong admin key' });
   }
   delete adminFailures[req.user.id];
   adminTokens.add(tokenOf(req)); adminSeen[tokenOf(req)] = Date.now();
-  logEvent('admin_unlocked', req.user.email, req.user);
+  logEvent('admin_unlocked', req.user.email + ' · IP ' + clientIp(req), req.user);
   saveDB();
   res.json({ ok: true });
 });
@@ -871,6 +1071,45 @@ app.get('/api/admin/overview', adminMiddleware, (req, res) => {
     },
     activity: db.activity.slice(0, 150)
   });
+});
+
+
+// Visitor log for the admin panel (IP, device, browser, signed-in user). Newest first.
+app.get('/api/admin/visits', adminMiddleware, (req, res) => {
+  const days = Math.min(Math.max(Number(req.query.days) || 7, 1), VISIT_KEEP_DAYS);
+  const cutoff = new Date(Date.now() - (days - 1) * 86400000).toISOString().slice(0, 10);
+  const rows = visitLog.filter(v => v.day >= cutoff).sort((a, b) => b.last.localeCompare(a.last)).slice(0, 2000)
+    .map(v => ({ ip: v.ip, day: v.day, first: v.first, last: v.last, hits: v.hits, os: v.os, browser: v.browser, mobile: v.mobile, bot: v.bot, user: v.user }));
+  const all = visitLog.filter(v => v.day >= cutoff);
+  res.json({
+    days, keepDays: VISIT_KEEP_DAYS, rows,
+    summary: { records: all.length, uniqueIps: new Set(all.map(v => v.ip)).size, mobile: all.filter(v => v.mobile && !v.bot).length, bots: all.filter(v => v.bot).length, signedIn: all.filter(v => v.user).length }
+  });
+});
+
+
+// Reports review: list open reports grouped by listing, then dismiss (unhide) them
+app.get('/api/admin/reports', adminMiddleware, (req, res) => {
+  const groups = {};
+  (db.reports || []).filter(r => !r.resolved).forEach(r => {
+    const k = r.type + ':' + r.listingId;
+    const arr = db[LISTING_TYPES[r.type]] || [];
+    const l = arr.find(x => x.id === r.listingId);
+    if (!l) { r.resolved = true; return; }
+    (groups[k] = groups[k] || { type: r.type, listingId: r.listingId, title: l.title || l.description || `${l.haveAmount} ${l.haveCurrency} → ${l.wantCurrency}`,
+      poster: l.posterName, posterEmail: (db.users.find(u => u.id === l.ownerId) || {}).email || '', hidden: !!l.hidden, reports: [] }).reports.push({ reporter: r.reporterName, reason: r.reason, note: r.note, at: r.at });
+  });
+  res.json(Object.values(groups).sort((a, b) => b.reports.length - a.reports.length));
+});
+app.post('/api/admin/reports/dismiss', adminMiddleware, (req, res) => {
+  const { type, id } = req.body || {};
+  const arr = LISTING_TYPES[type] && db[LISTING_TYPES[type]];
+  const l = arr && arr.find(x => x.id === String(id));
+  (db.reports || []).forEach(r => { if (r.type === type && r.listingId === String(id)) r.resolved = true; });
+  if (l) delete l.hidden;
+  logEvent('report_dismissed', (l && (l.title || l.description)) || String(id), req.user);
+  saveDB();
+  res.json({ ok: true });
 });
 
 app.get('/api/admin/users', adminMiddleware, (req, res) => {
@@ -954,7 +1193,7 @@ app.post('/api/admin/import', adminMiddleware, (req, res) => {
   const keepUser = req.user;
   db = {
     users: b.db.users, marketplace: b.db.marketplace || [], rentals: b.db.rentals || [],
-    items: b.db.items || [], rooms: b.db.rooms || [], messages: b.db.messages || [], activity: b.db.activity || [],
+    items: b.db.items || [], rooms: b.db.rooms || [], messages: b.db.messages || [], activity: b.db.activity || [], reports: b.db.reports || [],
     stats: b.db.stats || { visits: {} }
   };
   db.stats.visits = db.stats.visits || {};
@@ -976,7 +1215,7 @@ app.post('/api/admin/import', adminMiddleware, (req, res) => {
 });
 
 // --- Direct messaging between logged-in users, tied to a specific listing ---
-app.post('/api/messages', authMiddleware, (req, res) => {
+app.post('/api/messages', authMiddleware, requireVerified, limitBy('msg', 60, 600000), (req, res) => {
   const { listingType, listingId, listingSummary, toUserId, text } = req.body;
   if (!listingType || !listingId || !toUserId || !text) {
     return res.status(400).json({ error: 'listingType, listingId, toUserId, and text are required' });
