@@ -980,6 +980,7 @@
         <label class="auth-label">🔒 Password</label>
         <input id="regPassword" type="password" placeholder="At least 6 characters">
         <label class="show-pw"><input type="checkbox" onchange="toggleShowPw(this, ['regPassword'])"> Show password</label>
+        <p class="auth-help" style="font-size:12px;margin:6px 0 10px;">By creating an account you agree to our <a href="/privacy.html" target="_blank" rel="noopener">Privacy Notice</a>.</p>
         <button class="auth-submit-btn" onclick="doRegister()">Create Account</button>
         <p id="registerMsg" class="auth-msg"></p>
       </div>
@@ -3202,6 +3203,7 @@
     </div>
     <p class="footer-tag">Live rates · local marketplace · built for people on the move</p>
     <a class="footer-contact" href="mailto:admin@globalrate.space">✉️ admin@globalrate.space</a>
+    <a class="footer-contact" href="/privacy.html" style="display:inline-block;margin-top:6px;">🔒 Privacy Notice</a>
     <p class="footer-copy">© <span id="footerYear"></span> GlobalRate — built with ❤️ by <strong>MightSmith</strong></p>
   </footer>
   <script>document.getElementById('footerYear').textContent = new Date().getFullYear();</script>

@@ -239,7 +239,6 @@ function authMiddleware(req, res, next) {
   const user = userId && db.users.find(u => u.id === userId);
   if (!user) return res.status(401).json({ error: 'Please log in to continue' });
   req.user = user;
-  touchVisit(req, user);
   next();
 }
 
@@ -280,71 +279,20 @@ function logEvent(type, detail, user) {
 }
 
 
-// ---------------------------------------------------------------------------
-// Visitor log: one record per device (IP + browser) per day, kept 90 days.
-// Stored in visits.json next to the database (not in the public folder, not in backups).
-// ---------------------------------------------------------------------------
-const VISITS_PATH = process.env.VISITS_PATH || path.join(path.dirname(DB_PATH), 'visits.json');
-const VISIT_KEEP_DAYS = Number(process.env.VISIT_KEEP_DAYS) || 90;
-const VISIT_MAX = 50000;
-let visitLog = [];
-try { visitLog = JSON.parse(fs.readFileSync(VISITS_PATH, 'utf8')); if (!Array.isArray(visitLog)) visitLog = []; } catch (e) { visitLog = []; }
-const visitIndex = new Map();
-visitLog.forEach(v => visitIndex.set(v.key, v));
-let visitsDirty = false;
-
+// Client IP is used only in memory to rate-limit repeated attempts. It is never written to disk or logged.
 function clientIp(req) { return String((req && (req.ip || (req.socket && req.socket.remoteAddress))) || 'unknown').replace(/^::ffff:/, ''); }
-function parseUA(ua) {
-  ua = String(ua || '');
-  const bot = /bot|crawl|spider|slurp|preview|monitor|uptime|curl|wget|headless/i.test(ua);
-  let os = 'Other';
-  if (/iPhone/i.test(ua)) os = 'iPhone'; else if (/iPad/i.test(ua)) os = 'iPad'; else if (/Android/i.test(ua)) os = 'Android';
-  else if (/Windows/i.test(ua)) os = 'Windows'; else if (/Mac OS X|Macintosh/i.test(ua)) os = 'Mac'; else if (/CrOS/i.test(ua)) os = 'ChromeOS'; else if (/Linux/i.test(ua)) os = 'Linux';
-  let browser = 'Other';
-  if (/Edg\//i.test(ua)) browser = 'Edge'; else if (/OPR\/|Opera/i.test(ua)) browser = 'Opera'; else if (/SamsungBrowser/i.test(ua)) browser = 'Samsung';
-  else if (/Firefox|FxiOS/i.test(ua)) browser = 'Firefox'; else if (/Chrome|CriOS/i.test(ua)) browser = 'Chrome'; else if (/Safari/i.test(ua)) browser = 'Safari';
-  return { os, browser, mobile: /iPhone|Android|Mobile/i.test(ua), bot };
+// One-time cleanup: remove any visitor-IP file and IP addresses left in the activity log by an earlier version
+try { fs.unlinkSync(process.env.VISITS_PATH || path.join(path.dirname(DB_PATH), 'visits.json')); console.log('Removed old visits.json'); } catch (e) {}
+{
+  let scrubbed = 0;
+  (db.activity || []).forEach(a => { if (a.detail && / · IP \S+/.test(a.detail)) { a.detail = a.detail.replace(/ · IP \S+/g, ''); scrubbed++; } });
+  if (scrubbed) { saveDB(); console.log('Removed IP addresses from', scrubbed, 'activity log entries'); }
 }
-function recordVisit(req) {
-  const ip = clientIp(req), ua = String(req.headers['user-agent'] || '').slice(0, 300);
-  const day = new Date().toISOString().slice(0, 10);
-  const key = day + '|' + ip + '|' + crypto.createHash('md5').update(ua).digest('hex').slice(0, 8);
-  const now = new Date().toISOString();
-  let v = visitIndex.get(key);
-  if (v) { v.last = now; v.hits++; }
-  else {
-    v = { key, day, ip, first: now, last: now, hits: 1, ...parseUA(ua), user: null };
-    visitLog.push(v); visitIndex.set(key, v);
-    if (visitLog.length > VISIT_MAX) visitLog.splice(0, visitLog.length - VISIT_MAX).forEach(o => visitIndex.delete(o.key));
-  }
-  visitsDirty = true;
-  return v;
-}
-// when a signed-in user makes a request, attach their name to today's record for this device
-function touchVisit(req, user) {
-  try {
-    const ua = String(req.headers['user-agent'] || '').slice(0, 300);
-    const key = new Date().toISOString().slice(0, 10) + '|' + clientIp(req) + '|' + crypto.createHash('md5').update(ua).digest('hex').slice(0, 8);
-    const v = visitIndex.get(key) || recordVisit(req);
-    if (!v.user || v.user.id !== user.id) { v.user = { id: user.id, name: user.name, email: user.email }; visitsDirty = true; }
-  } catch (e) {}
-}
-function flushVisits() {
-  if (!visitsDirty) return;
-  visitsDirty = false;
-  const cutoff = new Date(Date.now() - VISIT_KEEP_DAYS * 86400000).toISOString().slice(0, 10);
-  visitLog = visitLog.filter(v => v.day >= cutoff);
-  visitIndex.clear(); visitLog.forEach(v => visitIndex.set(v.key, v));
-  try { fs.writeFileSync(VISITS_PATH + '.tmp', JSON.stringify(visitLog)); fs.renameSync(VISITS_PATH + '.tmp', VISITS_PATH); fs.chmodSync(VISITS_PATH, 0o600); } catch (e) { console.error('Could not save visits:', e.message); }
-}
-setInterval(flushVisits, 2 * 60 * 1000).unref();
-['SIGTERM', 'SIGINT'].forEach(sig => process.on(sig, () => { flushVisits(); process.exit(0); }));
 
 // Count daily page visits (in memory, flushed to disk every few minutes)
 let statsDirty = false;
 app.use((req, res, next) => {
   if (req.method === 'GET' && (req.path === '/' || req.path === '/index.html')) {
-    recordVisit(req);
     const day = new Date().toISOString().slice(0, 10);
     db.stats.visits[day] = (db.stats.visits[day] || 0) + 1;
     statsDirty = true;
@@ -490,7 +438,7 @@ app.post('/api/register', limitBy('reg', 6, 3600000, false), async (req, res) =>
 
   const token = crypto.randomBytes(24).toString('hex');
   startSession(token, user.id);
-  logEvent('register', user.email + ' · IP ' + clientIp(req), user);
+  logEvent('register', user.email, user);
   saveDB();
   res.status(201).json({ token, user: publicUser(user) });
 });
@@ -504,14 +452,14 @@ app.post('/api/login', async (req, res) => {
   }
   const noteFail = () => { [ipKey, emKey].forEach(k => { (resetAttempts[k] = resetAttempts[k] || []).push(Date.now()); }); };
   const user = db.users.find(u => u.email.toLowerCase() === (email || '').trim().toLowerCase());
-  if (!user) { noteFail(); logEvent('login_failed', 'unknown email: ' + String(email || '').slice(0, 60) + ' · IP ' + clientIp(req)); return res.status(401).json({ error: 'Invalid email or password' }); }
+  if (!user) { noteFail(); logEvent('login_failed', 'unknown email: ' + String(email || '').slice(0, 60)); return res.status(401).json({ error: 'Invalid email or password' }); }
   const match = await bcrypt.compare(password || '', user.passwordHash);
-  if (!match) { noteFail(); logEvent('login_failed', 'wrong password: ' + user.email + ' · IP ' + clientIp(req), user); return res.status(401).json({ error: 'Invalid email or password' }); }
+  if (!match) { noteFail(); logEvent('login_failed', 'wrong password: ' + user.email, user); return res.status(401).json({ error: 'Invalid email or password' }); }
 
   delete resetAttempts[emKey];
   const token = crypto.randomBytes(24).toString('hex');
   startSession(token, user.id);
-  logEvent('login', user.email + ' · IP ' + clientIp(req), user);
+  logEvent('login', user.email, user);
   saveDB();
   res.json({ token, user: publicUser(user) });
 });
@@ -1014,12 +962,12 @@ app.post('/api/admin/unlock', authMiddleware, (req, res) => {
     f.count += 1;
     if (f.count >= 5) { f.until = Date.now() + 15 * 60 * 1000; f.count = 0; }
     adminFailures[req.user.id] = f;
-    logEvent('admin_unlock_failed', req.user.email + ' · IP ' + clientIp(req), req.user);
+    logEvent('admin_unlock_failed', req.user.email, req.user);
     return res.status(401).json({ error: 'Wrong admin key' });
   }
   delete adminFailures[req.user.id];
   adminTokens.add(tokenOf(req)); adminSeen[tokenOf(req)] = Date.now();
-  logEvent('admin_unlocked', req.user.email + ' · IP ' + clientIp(req), req.user);
+  logEvent('admin_unlocked', req.user.email, req.user);
   saveDB();
   res.json({ ok: true });
 });
@@ -1074,18 +1022,6 @@ app.get('/api/admin/overview', adminMiddleware, (req, res) => {
 });
 
 
-// Visitor log for the admin panel (IP, device, browser, signed-in user). Newest first.
-app.get('/api/admin/visits', adminMiddleware, (req, res) => {
-  const days = Math.min(Math.max(Number(req.query.days) || 7, 1), VISIT_KEEP_DAYS);
-  const cutoff = new Date(Date.now() - (days - 1) * 86400000).toISOString().slice(0, 10);
-  const rows = visitLog.filter(v => v.day >= cutoff).sort((a, b) => b.last.localeCompare(a.last)).slice(0, 2000)
-    .map(v => ({ ip: v.ip, day: v.day, first: v.first, last: v.last, hits: v.hits, os: v.os, browser: v.browser, mobile: v.mobile, bot: v.bot, user: v.user }));
-  const all = visitLog.filter(v => v.day >= cutoff);
-  res.json({
-    days, keepDays: VISIT_KEEP_DAYS, rows,
-    summary: { records: all.length, uniqueIps: new Set(all.map(v => v.ip)).size, mobile: all.filter(v => v.mobile && !v.bot).length, bots: all.filter(v => v.bot).length, signedIn: all.filter(v => v.user).length }
-  });
-});
 
 
 // Reports review: list open reports grouped by listing, then dismiss (unhide) them
