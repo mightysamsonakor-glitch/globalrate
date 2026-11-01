@@ -259,7 +259,7 @@ function isAdminReq(req) {
 }
 function publicUser(user, req) {
   return { id: user.id, name: user.name, phone: user.phone, email: user.email,
-           canAdmin: canAdmin(user), isAdmin: req ? isAdminReq(req) : false, verified: user.verified !== false };
+           canAdmin: canAdmin(user), isAdmin: req ? isAdminReq(req) : false, verified: true };
 }
 function adminMiddleware(req, res, next) {
   authMiddleware(req, res, () => {
@@ -386,28 +386,6 @@ app.post('/api/providers', (req, res) => {
 });
 
 // --- Accounts ---
-function issueVerifyToken(user) {
-  const token = crypto.randomBytes(32).toString('hex');
-  user.verifyTokenHash = hashToken(token);
-  user.verifyExpires = Date.now() + 48 * 3600 * 1000;
-  return token;
-}
-async function sendVerifyEmail(user, link) {
-  if (!mailer) return;
-  const safeName = String(user.name).replace(/[<>&]/g, '');
-  try {
-    await mailer.sendMail({
-      from: `"GlobalRate" <${mailFromAddress}>`, to: user.email,
-      subject: 'Confirm your email for GlobalRate',
-      text: `Hi ${user.name},\n\nPlease confirm your email to start posting and messaging on GlobalRate:\n${link}\n\nThe link works for 48 hours. If you did not create this account, ignore this email.\n\n— GlobalRate`,
-      html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#1e293b">
-        <h2 style="color:#6d28d9">Confirm your email, ${safeName}</h2>
-        <p>Tap the button to confirm your email and start posting and messaging on GlobalRate.</p>
-        <p style="margin:24px 0"><a href="${link}" style="background:#7c3aed;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Confirm my email</a></p>
-        <p style="color:#64748b;font-size:13px">The link works for 48 hours. If you did not create this account, you can ignore this email.</p></div>`
-    });
-  } catch (err) { console.log('Could not send verification email to', user.email, '-', err.message); }
-}
 app.post('/api/register', limitBy('reg', 6, 3600000, false), async (req, res) => {
   const { name, email, phone, password } = req.body;
   if (!name || !email || !phone || !password) {
@@ -428,13 +406,9 @@ app.post('/api/register', limitBy('reg', 6, 3600000, false), async (req, res) =>
     passwordHash,
     createdAt: new Date().toISOString()
   };
-  // Confirm by email when email sending works; admins and no-email setups are confirmed automatically
-  user.verified = !mailer || canAdmin(user);
-  const vToken = user.verified ? null : issueVerifyToken(user);
   db.users.push(user);
   saveDB();
   sendWelcomeEmail(user);
-  if (vToken) sendVerifyEmail(user, siteBase(req) + '/api/verify-email?token=' + vToken);
 
   const token = crypto.randomBytes(24).toString('hex');
   startSession(token, user.id);
@@ -510,22 +484,8 @@ async function sendResetEmail(user, link) {
   }
 }
 
-app.get('/api/verify-email', (req, res) => {
-  const h = hashToken(req.query.token || '');
-  const user = req.query.token && db.users.find(u => u.verifyTokenHash && u.verifyTokenHash === h && u.verifyExpires > Date.now());
-  if (!user) return res.redirect('/?verified=0');
-  user.verified = true; delete user.verifyTokenHash; delete user.verifyExpires;
-  logEvent('email_verified', user.email, user);
-  saveDB();
-  res.redirect('/?verified=1');
-});
-app.post('/api/resend-verification', authMiddleware, limitBy('resendv', 3, 3600000), async (req, res) => {
-  if (req.user.verified !== false) return res.json({ ok: true, already: true });
-  const token = issueVerifyToken(req.user);
-  saveDB();
-  await sendVerifyEmail(req.user, siteBase(req) + '/api/verify-email?token=' + token);
-  res.json({ ok: true, message: 'Confirmation email sent. Check your inbox and spam folder.' });
-});
+// Old confirmation links in people's inboxes still land on the site
+app.get('/api/verify-email', (req, res) => res.redirect('/?verified=1'));
 app.post('/api/forgot-password', (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const generic = { ok: true, message: 'If an account exists for that email, a reset link is on its way. Check your inbox and spam folder.' };
@@ -551,13 +511,6 @@ function limitBy(name, max, windowMs, perUser = true) {
     next();
   };
 }
-// Accounts must confirm their email before posting, messaging or reporting (older accounts count as confirmed)
-function requireVerified(req, res, next) {
-  if (req.user && req.user.verified === false) {
-    return res.status(403).json({ error: 'Please confirm your email first. Check your inbox (and spam) for the link, or use "Resend email" in the yellow bar at the top.', code: 'unverified' });
-  }
-  next();
-}
 app.post('/api/reset-password', async (req, res) => {
   const { token, password } = req.body || {};
   if (tooMany('rp:' + req.ip, 30, 3600000)) return res.status(429).json({ error: 'Too many attempts. Try again later.' });
@@ -568,7 +521,6 @@ app.post('/api/reset-password', async (req, res) => {
   if (!user) return res.status(400).json({ error: 'This reset link has expired or was already used. Please request a new one.' });
   user.passwordHash = await bcrypt.hash(String(password), 10);
   delete user.resetTokenHash; delete user.resetExpires;
-  user.verified = true; delete user.verifyTokenHash;
   Object.keys(sessions).forEach(t => { if (sessions[t] === user.id) endSession(t); });
   const session = crypto.randomBytes(24).toString('hex');
   startSession(session, user.id);
@@ -630,7 +582,7 @@ app.get('/api/country-counts', (req, res) => {
 
 app.get('/api/marketplace', (req, res) => res.json(maskPhones(forCountry(db.marketplace, req), req)));
 
-app.post('/api/marketplace', authMiddleware, requireVerified, limitBy('post', 20, 3600000), (req, res) => {
+app.post('/api/marketplace', authMiddleware, limitBy('post', 20, 3600000), (req, res) => {
   const { haveCurrency, haveAmount, wantCurrency, location, notes } = req.body;
   if (!haveCurrency || !haveAmount || !wantCurrency || !location) {
     return res.status(400).json({ error: 'Currencies, amount, and location are required' });
@@ -682,7 +634,7 @@ app.delete('/api/marketplace/:id', authMiddleware, (req, res) => {
 // --- Vehicle & bike rentals marketplace (same pattern as currency marketplace) ---
 app.get('/api/rentals', (req, res) => res.json(maskPhones(forCountry(db.rentals, req), req)));
 
-app.post('/api/rentals', authMiddleware, requireVerified, limitBy('post', 20, 3600000), (req, res) => {
+app.post('/api/rentals', authMiddleware, limitBy('post', 20, 3600000), (req, res) => {
   const { vehicleType, description, pricePerDay, location, notes } = req.body;
   if (!vehicleType || !description || !pricePerDay || !location) {
     return res.status(400).json({ error: 'Vehicle type, description, price, and location are required' });
@@ -767,7 +719,7 @@ function deletePhotoFiles(urls) {
 
 app.get('/api/items', (req, res) => res.json(maskPhones(forCountry(db.items, req), req)));
 
-app.post('/api/items', authMiddleware, requireVerified, limitBy('post', 20, 3600000), (req, res) => {
+app.post('/api/items', authMiddleware, limitBy('post', 20, 3600000), (req, res) => {
   const { title, category, price, condition, location, description, photos } = req.body;
   if (!title || !price || !location) {
     return res.status(400).json({ error: 'Title, price and location are required' });
@@ -839,7 +791,7 @@ app.get('/api/rooms', (req, res) => {
   res.json(forCountry(db.rooms, req).map(r => roomForViewer(r, signedIn)));
 });
 
-app.post('/api/rooms', authMiddleware, requireVerified, limitBy('post', 20, 3600000), (req, res) => {
+app.post('/api/rooms', authMiddleware, limitBy('post', 20, 3600000), (req, res) => {
   const b = req.body || {};
   const clean = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
   const title = clean(b.title, 100), city = clean(b.city, 60), area = clean(b.area || b.location, 80), address = clean(b.address, 140);
@@ -916,7 +868,7 @@ app.delete('/api/rooms/:id', authMiddleware, (req, res) => {
 // --- Reports: users flag scams; 3 different reporters hide a listing until you review it ---
 const REPORT_REASONS = ['Scam or fraud', 'Fake or misleading', 'Wrong price', 'Offensive content', 'Already sold or gone', 'Other'];
 const REPORT_HIDE_AT = 3;
-app.post('/api/report', authMiddleware, requireVerified, limitBy('report', 20, 3600000), (req, res) => {
+app.post('/api/report', authMiddleware, limitBy('report', 20, 3600000), (req, res) => {
   const type = String((req.body || {}).type || ''), id = String((req.body || {}).id || '');
   const arr = LISTING_TYPES[type] && db[LISTING_TYPES[type]];
   const listing = arr && arr.find(l => l.id === id);
@@ -1151,7 +1103,7 @@ app.post('/api/admin/import', adminMiddleware, (req, res) => {
 });
 
 // --- Direct messaging between logged-in users, tied to a specific listing ---
-app.post('/api/messages', authMiddleware, requireVerified, limitBy('msg', 60, 600000), (req, res) => {
+app.post('/api/messages', authMiddleware, limitBy('msg', 60, 600000), (req, res) => {
   const { listingType, listingId, listingSummary, toUserId, text } = req.body;
   if (!listingType || !listingId || !toUserId || !text) {
     return res.status(400).json({ error: 'listingType, listingId, toUserId, and text are required' });
