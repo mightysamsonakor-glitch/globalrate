@@ -823,6 +823,26 @@
     .country-pick { appearance: none; -webkit-appearance: none; max-width: 150px; text-overflow: ellipsis; cursor: pointer; font-family: inherit; padding-right: 12px; }
     .country-pick option { color: #111; background: #fff; }
     @media (max-width: 800px) { .country-pick { max-width: 78px; padding: 8px 6px; font-size: 11px; } }
+
+    /* Searchable country dropdown */
+    .country-pick.cs-btn { overflow: hidden; white-space: nowrap; text-align: left; }
+    .form-box .cs-btn.cs-form, .cs-btn.cs-form {
+      width: 100%; background: #fff; color: #111; border: 2px solid #e5e7eb; border-radius: 10px; padding: 12px 14px;
+      font-size: 14px; font-weight: 400; font-family: 'Poppins', sans-serif; text-align: left; cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: relative;
+    }
+    .cs-btn.cs-form::after { content: '▾'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #64748b; }
+    .cs-pop { position: fixed; z-index: 10000; background: #fff; color: #111; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 12px 40px rgba(15,23,42,.22); overflow: hidden; font-family: 'Poppins', sans-serif; }
+    .cs-pop input { width: 100%; box-sizing: border-box; border: 0; border-bottom: 1px solid #e2e8f0; padding: 12px 14px; font-size: 16px; font-family: inherit; outline: none; background: transparent; color: inherit; }
+    .cs-pop ul { list-style: none; margin: 0; padding: 4px; max-height: 260px; overflow-y: auto; }
+    .cs-pop li { padding: 9px 12px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+    .cs-pop li.on, .cs-pop li:hover { background: #ede9fe; }
+    .cs-pop li.sel { font-weight: 700; }
+    .cs-pop .cs-none { padding: 14px; font-size: 13px; color: #64748b; }
+    html[data-theme="dark"] .cs-pop { background: #1e293b; color: #e5e7eb; border-color: #334155; }
+    html[data-theme="dark"] .cs-pop input { border-color: #334155; }
+    html[data-theme="dark"] .cs-pop li.on, html[data-theme="dark"] .cs-pop li:hover { background: #334155; }
+    html[data-theme="dark"] .cs-btn.cs-form, html[data-theme="dark"] .form-box .cs-btn.cs-form { background: #0f172a; color: #e5e7eb; border-color: #334155; }
 </style>
 </head>
 <body>
@@ -1897,6 +1917,60 @@
     // country a new listing is posted in by default
     function postCountry() { if (selCountry !== 'ALL') return selCountry; const d = detectCountry(); return d === 'ALL' ? 'LT' : d; }
 
+    // Turn a <select> into a button + popup with a search box (type letters to filter, arrows + Enter to choose)
+    function makeSearchable(sel) {
+      if (!sel || sel._cs) return;
+      sel._cs = true;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = (sel.className ? sel.className + ' ' : '') + 'cs-btn' + (sel.className ? '' : ' cs-form');
+      btn.setAttribute('aria-haspopup', 'listbox');
+      sel.style.display = 'none';
+      sel.parentNode.insertBefore(btn, sel.nextSibling);
+      const label = () => { const o = sel.options[sel.selectedIndex]; btn.textContent = o ? o.textContent : ''; };
+      sel._csSync = label; label();
+      let pop = null, items = [], active = 0;
+      function close() { if (pop) { pop.remove(); pop = null; document.removeEventListener('mousedown', outside, true); window.removeEventListener('resize', close); } }
+      function outside(e) { if (pop && !pop.contains(e.target) && e.target !== btn) close(); }
+      function choose(value) { sel.value = value; label(); close(); sel.dispatchEvent(new Event('change', { bubbles: true })); btn.focus(); }
+      function open() {
+        if (pop) return close();
+        pop = document.createElement('div'); pop.className = 'cs-pop';
+        pop.innerHTML = '<input type="text" placeholder="Type to search country…" autocomplete="off" aria-label="Search country"><ul role="listbox"></ul>';
+        document.body.appendChild(pop);
+        const input = pop.querySelector('input'), ul = pop.querySelector('ul');
+        const all = Array.from(sel.options).map(o => ({ value: o.value, text: o.textContent }));
+        function render() {
+          const q = input.value.trim().toLowerCase();
+          items = all.filter(o => !q || o.text.toLowerCase().includes(q));
+          active = Math.max(0, items.findIndex(o => o.value === sel.value && !q));
+          ul.innerHTML = items.length ? items.map((o, i) => `<li role="option" data-i="${i}" class="${i === active ? 'on' : ''} ${o.value === sel.value ? 'sel' : ''}">${o.text.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</li>`).join('') : '<div class="cs-none">No country matches</div>';
+          const on = ul.querySelector('.on'); if (on) on.scrollIntoView({ block: 'nearest' });
+        }
+        function mark() { ul.querySelectorAll('li').forEach((li, i) => li.classList.toggle('on', i === active)); const on = ul.querySelector('.on'); if (on) on.scrollIntoView({ block: 'nearest' }); }
+        input.addEventListener('input', render);
+        input.addEventListener('keydown', e => {
+          if (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(items.length - 1, active + 1); mark(); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(0, active - 1); mark(); }
+          else if (e.key === 'Enter') { e.preventDefault(); if (items[active]) choose(items[active].value); }
+          else if (e.key === 'Escape') { e.preventDefault(); close(); btn.focus(); }
+        });
+        ul.addEventListener('mousedown', e => { const li = e.target.closest('li'); if (li) { e.preventDefault(); choose(items[Number(li.dataset.i)].value); } });
+        render();
+        const r = btn.getBoundingClientRect(), w = Math.max(r.width, 250);
+        pop.style.width = w + 'px';
+        pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+        const below = window.innerHeight - r.bottom, h = pop.offsetHeight;
+        pop.style.top = (below >= Math.min(h, 330) || r.top < h ? r.bottom + 6 : Math.max(8, r.top - h - 6)) + 'px';
+        document.addEventListener('mousedown', outside, true);
+        window.addEventListener('resize', close);
+        input.focus();
+      }
+      btn.addEventListener('click', open);
+    }
+    function refreshCountrySearchables() {
+      ['countryPick', 'mCountry', 'rCountry', 'iCountry', 'rmCountry'].forEach(id => { const el = document.getElementById(id); if (el && el._csSync) el._csSync(); });
+    }
     function buildCountryUI(counts) {
       counts = counts || {};
       const codes = Object.keys(COUNTRY_LIST).sort((a, b) => (counts[b] || 0) - (counts[a] || 0) || COUNTRY_LIST[a].localeCompare(COUNTRY_LIST[b]));
@@ -1911,6 +1985,7 @@
         const el = document.getElementById(id);
         if (el) { const keep = el.value; el.innerHTML = formOpts; el.value = COUNTRY_LIST[keep] ? keep : postCountry(); }
       });
+      refreshCountrySearchables();
     }
     // add a Country field to a form, just before the field that holds the given input
     function injectCountryField(inputId, selId) {
@@ -1921,15 +1996,18 @@
       field.setAttribute('style', 'flex:1; min-width:140px;');
       field.innerHTML = '<label class="mkt-field-label">🌍 Country</label><select id="' + selId + '"></select>';
       wrap.parentElement.insertBefore(field, wrap);
+      makeSearchable(document.getElementById(selId));
     }
     function reloadAllLists() { loadMarketplace(); loadRentals(); loadItems(); loadRooms(); }
     function onCountryChange(v) {
       selCountry = v;
       try { localStorage.setItem('gr_country', v); } catch (e) {}
       ['mCountry', 'rCountry', 'iCountry', 'rmCountry'].forEach(id => { const el = document.getElementById(id); if (el) el.value = postCountry(); });
+      refreshCountrySearchables();
       reloadAllLists();
     }
     function initCountries() {
+      makeSearchable(document.getElementById('countryPick'));
       injectCountryField('mLocation', 'mCountry');
       injectCountryField('rLocation', 'rCountry');
       injectCountryField('iLocation', 'iCountry');
