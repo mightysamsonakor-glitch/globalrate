@@ -18,7 +18,7 @@ A free community marketplace for students and expats — built by <b>Mighty Sams
 </p>
 
 <p align="center">
-  <img src="docs/preview.webp" alt="GlobalRate homepage" width="900">
+  <img src="docs/screenshots/home.png" alt="GlobalRate homepage" width="900">
 </p>
 
 ---
@@ -145,7 +145,7 @@ docs/screenshots/    README images
 
 ## Contact
 
-Built by **MightSmith** (Mighty Samson) — 3rd-year student at VilniusTech.
+Built by **Mighty Samson Akor** — 3rd-year student at VilniusTech.
 Questions or feedback: **admin@globalrate.space**
 
 ## License
